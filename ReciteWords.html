@@ -262,7 +262,16 @@ const TTS = {
 // Preload voices
 if (TTS.supported) window.speechSynthesis.getVoices();
 
-const words = [
+// ===== 多单词本支持 =====
+let _bookParam = '';
+let _bookTitle = '📚 Unity词汇学习';
+let _storageKeyOverride = '';
+try {
+  const params = new URLSearchParams(window.location.search);
+  _bookParam = params.get('book') || '';
+} catch(e) {}
+
+let words = [
   // ===== 核心概念 =====
   {word:"GameObject",phonetic:"/ɡeɪm ˈɒbdʒɪkt/",meaning:"游戏对象 — Unity场景中所有实体的基类，是组件的容器",example:"Every item in a Unity scene is a GameObject.",exampleCn:"Unity场景中的每个物体都是一个游戏对象。",category:"核心概念"},
   {word:"Component",phonetic:"/kəmˈpoʊnənt/",meaning:"组件 — 附加到GameObject上的功能模块，定义其行为和外观",example:"Add a Rigidbody component to enable physics.",exampleCn:"添加一个刚体组件来启用物理效果。",category:"核心概念"},
@@ -523,9 +532,13 @@ const words = [
 const Storage = {
   STORAGE_KEY: 'unity-vocab-data',
 
+  getKey() {
+    return _storageKeyOverride || this.STORAGE_KEY;
+  },
+
   load() {
     try {
-      const raw = localStorage.getItem(this.STORAGE_KEY);
+      const raw = localStorage.getItem(this.getKey());
       if (raw === null) return null;
       return JSON.parse(raw);
     } catch (e) {
@@ -534,7 +547,7 @@ const Storage = {
   },
 
   save(data) {
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(this.getKey(), JSON.stringify(data));
   },
 
   validate(data) {
@@ -832,7 +845,7 @@ const AppState = {
 
   switchView(targetView) {
     // Save current session progress if in a learning/review mode
-    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn' || this.currentView === 'spelling') {
+    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn' || this.currentView === 'spelling' || this.currentView === 'focusLearn') {
       this.saveSession();
     }
 
@@ -859,6 +872,9 @@ const AppState = {
         break;
       case 'spelling':
         renderSpelling();
+        break;
+      case 'focusLearn':
+        renderFocusCard();
         break;
       case 'settings':
         renderSettings();
@@ -967,7 +983,7 @@ function renderDashboard() {
   app.innerHTML = `
     <button class="dashboard-settings" onclick="AppState.switchView('settings')" title="设置">⚙️</button>
     <button class="dashboard-settings" style="right:48px" onclick="location.href='index.html'" title="切换单词本">📚</button>
-    <div class="dashboard-title">📚 Unity词汇学习</div>
+    <div class="dashboard-title">${_bookTitle}</div>
     <div class="dashboard-stats">
       <span class="stat-item"><span class="stat-dot" style="background:#e94560"></span> 已学天数: ${stats.daysLearned}</span>
       <span class="stat-item"><span class="stat-dot" style="background:#533483"></span> 已学: ${stats.totalLearned}/${words.length}</span>
@@ -1116,8 +1132,21 @@ function dailyToggleReveal() {
 
 function dailyAnswer(type) {
   const ss = AppState.sessionState;
-  if (!ss.revealed) { dailyToggleReveal(); return; }
 
+  // 点击不认识或模糊时，先显示释义，再等用户确认
+  if (!ss.revealed) {
+    dailyToggleReveal();
+    if (type === 'know') return; // 认识：显示释义后等用户再次点击
+    // 不认识/模糊：显示释义后短暂停留，自动记录并进入下一个
+    setTimeout(() => { dailyRecordAnswer(type); }, 1200);
+    return;
+  }
+
+  dailyRecordAnswer(type);
+}
+
+function dailyRecordAnswer(type) {
+  const ss = AppState.sessionState;
   const w = ss.deck[ss.currentIndex];
 
   // Update stats
@@ -1312,8 +1341,19 @@ function reviewToggleReveal() {
 
 function reviewAnswer(type) {
   const ss = AppState.sessionState;
-  if (!ss.revealed) { reviewToggleReveal(); return; }
 
+  if (!ss.revealed) {
+    reviewToggleReveal();
+    if (type === 'know') return;
+    setTimeout(() => { reviewRecordAnswer(type); }, 1200);
+    return;
+  }
+
+  reviewRecordAnswer(type);
+}
+
+function reviewRecordAnswer(type) {
+  const ss = AppState.sessionState;
   const w = ss.deck[ss.currentIndex];
 
   // Update stats
@@ -1417,6 +1457,13 @@ function renderLibrary() {
     html += '<button class="library-filter-btn' + active + '" onclick="updateLibraryFilter(\'level\', \'' + lv + '\')">' + levelLabels[lv] + '</button>';
   });
   html += '</div>';
+
+  // 重点攻克按钮：当筛选不认识或模糊时显示
+  if (_libraryFilters.level && _libraryFilters.level !== 'know' && filtered.length > 0) {
+    html += '<div style="text-align:center;margin-top:16px;">';
+    html += '<button class="btn btn-forget" style="padding:12px 28px;font-size:15px;" onclick="startFocusLearn(\'' + _libraryFilters.level + '\')">🎯 重点攻克 (' + filtered.length + '词)</button>';
+    html += '</div>';
+  }
 
   // Word list
   if (filtered.length === 0) {
@@ -1632,8 +1679,19 @@ function extractedToggleReveal() {
 
 function extractedAnswer(type) {
   var ss = AppState.sessionState;
-  if (!ss.revealed) { extractedToggleReveal(); return; }
 
+  if (!ss.revealed) {
+    extractedToggleReveal();
+    if (type === 'know') return;
+    setTimeout(function() { extractedRecordAnswer(type); }, 1200);
+    return;
+  }
+
+  extractedRecordAnswer(type);
+}
+
+function extractedRecordAnswer(type) {
+  var ss = AppState.sessionState;
   var w = ss.deck[ss.currentIndex];
 
   // Update stats
@@ -1975,6 +2033,118 @@ function spellNext() {
   renderSpellingCard();
 }
 
+// ===== 重点攻克模式 =====
+function startFocusLearn(level) {
+  const progress = AppState.data.progress;
+  const targetWords = Object.keys(progress)
+    .filter(k => progress[k].masteryLevel === level)
+    .map(k => words.find(w => w.word === k))
+    .filter(Boolean);
+
+  if (targetWords.length === 0) return;
+
+  const shuffled = targetWords.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  AppState.sessionState = {
+    deck: shuffled,
+    currentIndex: 0,
+    revealed: false,
+    stats: { forget: 0, fuzzy: 0, know: 0 },
+    reviewQueue: [],
+    mode: 'focusLearn',
+    focusRound: 1
+  };
+  AppState.currentView = 'focusLearn';
+  renderFocusCard();
+}
+
+function renderFocusCard() {
+  const ss = AppState.sessionState;
+  const app = document.getElementById('app');
+
+  if (ss.currentIndex >= ss.deck.length) {
+    // 还有不认识的，继续下一轮
+    if (ss.reviewQueue.length > 0) {
+      const rq = ss.reviewQueue.slice();
+      for (let i = rq.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rq[i], rq[j]] = [rq[j], rq[i]];
+      }
+      ss.deck = rq;
+      ss.reviewQueue = [];
+      ss.currentIndex = 0;
+      ss.focusRound++;
+      renderFocusCard();
+      return;
+    }
+
+    // 全部认识了
+    const total = ss.stats.forget + ss.stats.fuzzy + ss.stats.know;
+    app.innerHTML = `
+      <div class="complete">
+        <h2>🎯 攻克完成</h2>
+        <p>经过 ${ss.focusRound} 轮学习，共复习 ${total} 次</p>
+        <p>所有单词已标记为认识 ✅</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回主页</button>
+      </div>`;
+    return;
+  }
+
+  const w = ss.deck[ss.currentIndex];
+  const total = ss.deck.length;
+  const pct = Math.round((ss.currentIndex / total) * 100);
+  ss.revealed = false;
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="AppState.switchView('library')">← 返回</button>
+    <div style="text-align:center;margin-bottom:8px;font-size:13px;color:#e94560;">🎯 重点攻克 · 第${ss.focusRound}轮</div>
+    <div class="progress-bar">
+      <span>${ss.currentIndex + 1} / ${total}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>${pct}%</span>
+    </div>
+    <div class="category">${w.category}</div>
+    <div class="word">${w.word} ${speakBtnHtml(w.word, 'speak-word')}</div>
+    <div class="phonetic">${w.phonetic}</div>
+    <div class="meaning" id="focus-meaning" style="cursor:default;">
+      ${w.meaning}
+    </div>
+    <div class="example" id="focus-example">${w.example} ${speakBtnHtml(w.example, 'speak-example')}</div>
+    <div class="example-cn" id="focus-example-cn">${w.exampleCn || ''}</div>
+    <div class="btns">
+      <button class="btn btn-forget" onclick="focusAnswer('forget')">😵 还是不认识</button>
+      <button class="btn btn-know" onclick="focusAnswer('know')">✅ 记住了</button>
+    </div>
+    <div class="stats">
+      <span><span class="dot dot-forget"></span> 未记住 ${ss.reviewQueue.length}</span>
+      <span><span class="dot dot-know"></span> 已记住 ${ss.stats.know}</span>
+    </div>
+    <div class="keyboard-hint-mobile">释义已显示，确认是否记住</div>
+  `;
+}
+
+function focusAnswer(type) {
+  const ss = AppState.sessionState;
+  const w = ss.deck[ss.currentIndex];
+
+  if (type === 'know') {
+    ss.stats.know++;
+    ReviewEngine.updateReview(AppState.data, w.word, 'know');
+  } else {
+    ss.stats.forget++;
+    ReviewEngine.updateReview(AppState.data, w.word, 'forget');
+    ss.reviewQueue.push(w);
+  }
+
+  ss.currentIndex++;
+  AppState.saveSession();
+  renderFocusCard();
+}
+
 // 打乱顺序
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -2081,7 +2251,7 @@ document.addEventListener('keydown', e => {
   
   // Escape key: return to previous level
   if (e.key === 'Escape') {
-    if (view === 'dailyLearn' || view === 'review' || view === 'library' || view === 'extractedLearn' || view === 'settings' || view === 'spelling') {
+    if (view === 'dailyLearn' || view === 'review' || view === 'library' || view === 'extractedLearn' || view === 'settings' || view === 'spelling' || view === 'focusLearn') {
       AppState.switchView('dashboard');
     } else if (view === 'wordDetail') {
       AppState.switchView('library');
@@ -2109,7 +2279,29 @@ document.addEventListener('keydown', e => {
   // Dashboard and other views: no 1/2/3 shortcuts
 });
 
-AppState.init();
+// ===== 动态加载单词本 =====
+function bootApp() {
+  if (_bookParam) {
+    const scriptEl = document.createElement('script');
+    scriptEl.src = 'words-' + _bookParam + '.js';
+    scriptEl.onload = function() {
+      if (typeof BOOK_WORDS !== 'undefined') {
+        words = BOOK_WORDS;
+        _bookTitle = (typeof BOOK_TITLE !== 'undefined') ? BOOK_TITLE : _bookTitle;
+        _storageKeyOverride = (typeof STORAGE_KEY !== 'undefined') ? STORAGE_KEY : '';
+      }
+      AppState.init();
+    };
+    scriptEl.onerror = function() {
+      alert('单词本加载失败: ' + _bookParam);
+      AppState.init();
+    };
+    document.head.appendChild(scriptEl);
+  } else {
+    AppState.init();
+  }
+}
+bootApp();
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
