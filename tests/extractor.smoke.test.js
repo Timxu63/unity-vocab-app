@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function loadModules() {
-  const html = fs.readFileSync(path.resolve(__dirname, '../unity单词弹窗.html'), 'utf-8');
+  const html = fs.readFileSync(path.resolve(__dirname, '../ReciteWords.html'), 'utf-8');
   const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
   if (!scriptMatch) throw new Error('No script tag found');
   const scriptContent = scriptMatch[1];
