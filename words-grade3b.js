@@ -1,85 +1,96 @@
-// 三年级下册（人教PEP）单词表
-const BOOK_TITLE = "📚 三年级下册";
+// 三年级下册（外研版三起）单词表
+const BOOK_TITLE = "📚 三年级下册（外研版）";
 const STORAGE_KEY = "vocabApp_grade3b";
 const BOOK_WORDS = [
-  // Unit 1 Welcome back to school
-  {word:"UK",phonetic:"/juːˈkeɪ/",meaning:"英国",example:"I'm from the UK.",exampleCn:"我来自英国。",category:"Unit 1"},
-  {word:"Canada",phonetic:"/ˈkænədə/",meaning:"加拿大",example:"She is from Canada.",exampleCn:"她来自加拿大。",category:"Unit 1"},
-  {word:"USA",phonetic:"/juːesˈeɪ/",meaning:"美国",example:"He is from the USA.",exampleCn:"他来自美国。",category:"Unit 1"},
-  {word:"China",phonetic:"/ˈtʃaɪnə/",meaning:"中国",example:"I'm from China.",exampleCn:"我来自中国。",category:"Unit 1"},
-  {word:"she",phonetic:"/ʃiː/",meaning:"她",example:"She is a student.",exampleCn:"她是一名学生。",category:"Unit 1"},
-  {word:"he",phonetic:"/hiː/",meaning:"他",example:"He is my friend.",exampleCn:"他是我的朋友。",category:"Unit 1"},
-  {word:"boy",phonetic:"/bɔɪ/",meaning:"男孩",example:"The boy is tall.",exampleCn:"这个男孩很高。",category:"Unit 1"},
-  {word:"girl",phonetic:"/ɡɜːrl/",meaning:"女孩",example:"The girl is nice.",exampleCn:"这个女孩很好。",category:"Unit 1"},
-  {word:"teacher",phonetic:"/ˈtiːtʃər/",meaning:"老师",example:"She is a teacher.",exampleCn:"她是一位老师。",category:"Unit 1"},
-  {word:"student",phonetic:"/ˈstjuːdənt/",meaning:"学生",example:"I am a student.",exampleCn:"我是一名学生。",category:"Unit 1"},
-  {word:"friend",phonetic:"/frend/",meaning:"朋友",example:"This is my friend.",exampleCn:"这是我的朋友。",category:"Unit 1"},
-  {word:"new",phonetic:"/njuː/",meaning:"新的",example:"I have a new friend.",exampleCn:"我有一个新朋友。",category:"Unit 1"},
-  {word:"today",phonetic:"/təˈdeɪ/",meaning:"今天",example:"We have two new friends today.",exampleCn:"今天我们有两个新朋友。",category:"Unit 1"},
+  // Module 1 — It's the ABC song.
+  {word:"song",phonetic:"/sɒŋ/",meaning:"歌曲",example:"It's the ABC song.",exampleCn:"这是ABC歌。",category:"Module 1"},
+  {word:"favourite",phonetic:"/ˈfeɪvərɪt/",meaning:"最喜欢的",example:"What's your favourite song?",exampleCn:"你最喜欢的歌是什么？",category:"Module 1"},
+  {word:"colour",phonetic:"/ˈkʌlər/",meaning:"颜色",example:"What's your favourite colour?",exampleCn:"你最喜欢的颜色是什么？",category:"Module 1"},
+  {word:"here",phonetic:"/hɪər/",meaning:"这里",example:"Here you are.",exampleCn:"给你。",category:"Module 1"},
 
-  // Unit 2 My family
-  {word:"father",phonetic:"/ˈfɑːðər/",meaning:"父亲；爸爸",example:"This is my father.",exampleCn:"这是我的爸爸。",category:"Unit 2"},
-  {word:"dad",phonetic:"/dæd/",meaning:"爸爸（口语）",example:"My dad is tall.",exampleCn:"我爸爸很高。",category:"Unit 2"},
-  {word:"mother",phonetic:"/ˈmʌðər/",meaning:"母亲；妈妈",example:"My mother is a teacher.",exampleCn:"我妈妈是一位老师。",category:"Unit 2"},
-  {word:"mom",phonetic:"/mɒm/",meaning:"妈妈（口语）",example:"I love my mom.",exampleCn:"我爱我妈妈。",category:"Unit 2"},
-  {word:"man",phonetic:"/mæn/",meaning:"男人",example:"Who is that man?",exampleCn:"那个男人是谁？",category:"Unit 2"},
-  {word:"woman",phonetic:"/ˈwʊmən/",meaning:"女人",example:"Who is that woman?",exampleCn:"那个女人是谁？",category:"Unit 2"},
-  {word:"grandmother",phonetic:"/ˈɡrænmʌðər/",meaning:"（外）祖母",example:"She is my grandmother.",exampleCn:"她是我的奶奶。",category:"Unit 2"},
-  {word:"grandma",phonetic:"/ˈɡrænmɑː/",meaning:"奶奶；姥姥（口语）",example:"My grandma is kind.",exampleCn:"我奶奶很和蔼。",category:"Unit 2"},
-  {word:"grandfather",phonetic:"/ˈɡrænfɑːðər/",meaning:"（外）祖父",example:"He is my grandfather.",exampleCn:"他是我的爷爷。",category:"Unit 2"},
-  {word:"grandpa",phonetic:"/ˈɡrænpɑː/",meaning:"爷爷；姥爷（口语）",example:"My grandpa is funny.",exampleCn:"我爷爷很有趣。",category:"Unit 2"},
-  {word:"sister",phonetic:"/ˈsɪstər/",meaning:"姐妹",example:"She is my sister.",exampleCn:"她是我的姐姐。",category:"Unit 2"},
-  {word:"brother",phonetic:"/ˈbrʌðər/",meaning:"兄弟",example:"He is my brother.",exampleCn:"他是我的哥哥。",category:"Unit 2"},
-  {word:"family",phonetic:"/ˈfæməli/",meaning:"家庭",example:"This is my family.",exampleCn:"这是我的家庭。",category:"Unit 2"},
+  // Module 2 — They're monkeys.
+  {word:"tiger",phonetic:"/ˈtaɪɡər/",meaning:"老虎",example:"It's a tiger.",exampleCn:"这是一只老虎。",category:"Module 2"},
+  {word:"lion",phonetic:"/ˈlaɪən/",meaning:"狮子",example:"That's a lion.",exampleCn:"那是一只狮子。",category:"Module 2"},
+  {word:"elephant",phonetic:"/ˈelɪfənt/",meaning:"大象",example:"Look at the elephant.",exampleCn:"看那只大象。",category:"Module 2"},
+  {word:"monkey",phonetic:"/ˈmʌŋki/",meaning:"猴子",example:"They're monkeys.",exampleCn:"它们是猴子。",category:"Module 2"},
+  {word:"panda",phonetic:"/ˈpændə/",meaning:"熊猫",example:"It's a panda.",exampleCn:"这是一只熊猫。",category:"Module 2"},
+  {word:"big",phonetic:"/bɪɡ/",meaning:"大的",example:"The elephant is big.",exampleCn:"大象很大。",category:"Module 2"},
+  {word:"little",phonetic:"/ˈlɪtl/",meaning:"小的",example:"It's a little cat.",exampleCn:"这是一只小猫。",category:"Module 2"},
+  {word:"fat",phonetic:"/fæt/",meaning:"胖的",example:"The panda is fat.",exampleCn:"熊猫很胖。",category:"Module 2"},
+  {word:"thin",phonetic:"/θɪn/",meaning:"瘦的",example:"The monkey is thin.",exampleCn:"猴子很瘦。",category:"Module 2"},
+  {word:"tall",phonetic:"/tɔːl/",meaning:"高的",example:"The man is tall.",exampleCn:"这个男人很高。",category:"Module 2"},
+  {word:"short",phonetic:"/ʃɔːrt/",meaning:"矮的",example:"The boy is short.",exampleCn:"这个男孩很矮。",category:"Module 2"},
 
-  // Unit 3 At the zoo
-  {word:"thin",phonetic:"/θɪn/",meaning:"瘦的",example:"The monkey is thin.",exampleCn:"这只猴子很瘦。",category:"Unit 3"},
-  {word:"fat",phonetic:"/fæt/",meaning:"胖的",example:"The bear is fat.",exampleCn:"这只熊很胖。",category:"Unit 3"},
-  {word:"tall",phonetic:"/tɔːl/",meaning:"高的",example:"The giraffe is tall.",exampleCn:"长颈鹿很高。",category:"Unit 3"},
-  {word:"short",phonetic:"/ʃɔːrt/",meaning:"矮的；短的",example:"The rabbit is short.",exampleCn:"兔子很矮。",category:"Unit 3"},
-  {word:"long",phonetic:"/lɒŋ/",meaning:"长的",example:"It has a long nose.",exampleCn:"它有一个长鼻子。",category:"Unit 3"},
-  {word:"small",phonetic:"/smɔːl/",meaning:"小的",example:"The mouse is small.",exampleCn:"老鼠很小。",category:"Unit 3"},
-  {word:"big",phonetic:"/bɪɡ/",meaning:"大的",example:"The elephant is big.",exampleCn:"大象很大。",category:"Unit 3"},
-  {word:"giraffe",phonetic:"/dʒɪˈrɑːf/",meaning:"长颈鹿",example:"Look at the giraffe.",exampleCn:"看那只长颈鹿。",category:"Unit 3"},
-  {word:"children",phonetic:"/ˈtʃɪldrən/",meaning:"孩子们",example:"Come here, children.",exampleCn:"孩子们，过来。",category:"Unit 3"},
-  {word:"tail",phonetic:"/teɪl/",meaning:"尾巴",example:"It has a long tail.",exampleCn:"它有一条长尾巴。",category:"Unit 3"},
+  // Module 3 — I like football.
+  {word:"like",phonetic:"/laɪk/",meaning:"喜欢",example:"I like football.",exampleCn:"我喜欢足球。",category:"Module 3"},
+  {word:"football",phonetic:"/ˈfʊtbɔːl/",meaning:"足球",example:"I like football.",exampleCn:"我喜欢足球。",category:"Module 3"},
+  {word:"basketball",phonetic:"/ˈbɑːskɪtbɔːl/",meaning:"篮球",example:"I like basketball.",exampleCn:"我喜欢篮球。",category:"Module 3"},
+  {word:"table tennis",phonetic:"/ˈteɪbl ˈtenɪs/",meaning:"乒乓球",example:"I don't like table tennis.",exampleCn:"我不喜欢乒乓球。",category:"Module 3"},
+  {word:"morning",phonetic:"/ˈmɔːrnɪŋ/",meaning:"早上",example:"Good morning.",exampleCn:"早上好。",category:"Module 3"},
+  {word:"ride",phonetic:"/raɪd/",meaning:"骑",example:"I like to ride my bike.",exampleCn:"我喜欢骑自行车。",category:"Module 3"},
+  {word:"bike",phonetic:"/baɪk/",meaning:"自行车",example:"This is my bike.",exampleCn:"这是我的自行车。",category:"Module 3"},
 
-  // Unit 4 Where is my car?
-  {word:"on",phonetic:"/ɒn/",meaning:"在……上面",example:"The book is on the desk.",exampleCn:"书在桌子上。",category:"Unit 4"},
-  {word:"in",phonetic:"/ɪn/",meaning:"在……里面",example:"The ball is in the box.",exampleCn:"球在盒子里。",category:"Unit 4"},
-  {word:"under",phonetic:"/ˈʌndər/",meaning:"在……下面",example:"The cat is under the chair.",exampleCn:"猫在椅子下面。",category:"Unit 4"},
-  {word:"chair",phonetic:"/tʃeər/",meaning:"椅子",example:"Sit on the chair.",exampleCn:"坐在椅子上。",category:"Unit 4"},
-  {word:"desk",phonetic:"/desk/",meaning:"书桌",example:"The book is on the desk.",exampleCn:"书在书桌上。",category:"Unit 4"},
-  {word:"cap",phonetic:"/kæp/",meaning:"帽子",example:"Where is my cap?",exampleCn:"我的帽子在哪里？",category:"Unit 4"},
-  {word:"ball",phonetic:"/bɔːl/",meaning:"球",example:"The ball is under the desk.",exampleCn:"球在桌子下面。",category:"Unit 4"},
-  {word:"car",phonetic:"/kɑːr/",meaning:"小汽车",example:"Where is my car?",exampleCn:"我的小汽车在哪里？",category:"Unit 4"},
-  {word:"boat",phonetic:"/boʊt/",meaning:"小船",example:"The boat is on the water.",exampleCn:"小船在水上。",category:"Unit 4"},
-  {word:"map",phonetic:"/mæp/",meaning:"地图",example:"Look at the map.",exampleCn:"看这张地图。",category:"Unit 4"},
-  {word:"toy",phonetic:"/tɔɪ/",meaning:"玩具",example:"Is it in your toy box?",exampleCn:"它在你的玩具箱里吗？",category:"Unit 4"},
-  {word:"box",phonetic:"/bɒks/",meaning:"盒子",example:"The toy is in the box.",exampleCn:"玩具在盒子里。",category:"Unit 4"},
+  // Module 4 — Do you like meat?
+  {word:"meat",phonetic:"/miːt/",meaning:"肉",example:"Do you like meat?",exampleCn:"你喜欢肉吗？",category:"Module 4"},
+  {word:"noodles",phonetic:"/ˈnuːdlz/",meaning:"面条",example:"I like noodles.",exampleCn:"我喜欢面条。",category:"Module 4"},
+  {word:"rice",phonetic:"/raɪs/",meaning:"米饭",example:"Do you like rice?",exampleCn:"你喜欢米饭吗？",category:"Module 4"},
+  {word:"fish",phonetic:"/fɪʃ/",meaning:"鱼；鱼肉",example:"I don't like fish.",exampleCn:"我不喜欢鱼。",category:"Module 4"},
+  {word:"milk",phonetic:"/mɪlk/",meaning:"牛奶",example:"I like milk.",exampleCn:"我喜欢牛奶。",category:"Module 4"},
+  {word:"pass",phonetic:"/pɑːs/",meaning:"传递",example:"Pass me the rice, please.",exampleCn:"请把米饭递给我。",category:"Module 4"},
+  {word:"but",phonetic:"/bʌt/",meaning:"但是",example:"I like meat, but I don't like fish.",exampleCn:"我喜欢肉，但我不喜欢鱼。",category:"Module 4"},
 
-  // Unit 5 Do you like pears?
-  {word:"pear",phonetic:"/peər/",meaning:"梨",example:"Do you like pears?",exampleCn:"你喜欢梨吗？",category:"Unit 5"},
-  {word:"apple",phonetic:"/ˈæpl/",meaning:"苹果",example:"I like apples.",exampleCn:"我喜欢苹果。",category:"Unit 5"},
-  {word:"orange",phonetic:"/ˈɒrɪndʒ/",meaning:"橙子",example:"Have some oranges.",exampleCn:"吃一些橙子吧。",category:"Unit 5"},
-  {word:"banana",phonetic:"/bəˈnɑːnə/",meaning:"香蕉",example:"I don't like bananas.",exampleCn:"我不喜欢香蕉。",category:"Unit 5"},
-  {word:"watermelon",phonetic:"/ˈwɔːtərmelən/",meaning:"西瓜",example:"The watermelon is sweet.",exampleCn:"西瓜很甜。",category:"Unit 5"},
-  {word:"strawberry",phonetic:"/ˈstrɔːbəri/",meaning:"草莓",example:"I like strawberries.",exampleCn:"我喜欢草莓。",category:"Unit 5"},
-  {word:"grape",phonetic:"/ɡreɪp/",meaning:"葡萄",example:"Have some grapes.",exampleCn:"吃一些葡萄吧。",category:"Unit 5"},
-  {word:"buy",phonetic:"/baɪ/",meaning:"买",example:"Can I buy some fruit?",exampleCn:"我能买一些水果吗？",category:"Unit 5"},
-  {word:"fruit",phonetic:"/fruːt/",meaning:"水果",example:"I like fruit.",exampleCn:"我喜欢水果。",category:"Unit 5"},
+  // Module 5 — She goes to school on Mondays.
+  {word:"go",phonetic:"/ɡoʊ/",meaning:"去",example:"I go to school.",exampleCn:"我去上学。",category:"Module 5"},
+  {word:"goes",phonetic:"/ɡoʊz/",meaning:"去（第三人称单数）",example:"She goes to school.",exampleCn:"她去上学。",category:"Module 5"},
+  {word:"on",phonetic:"/ɒn/",meaning:"在……（某天）",example:"She goes to school on Mondays.",exampleCn:"她星期一去上学。",category:"Module 5"},
+  {word:"Monday",phonetic:"/ˈmʌndeɪ/",meaning:"星期一",example:"On Monday I go swimming.",exampleCn:"星期一我去游泳。",category:"Module 5"},
+  {word:"play",phonetic:"/pleɪ/",meaning:"玩；打（球）",example:"I play football on Mondays.",exampleCn:"我星期一踢足球。",category:"Module 5"},
+  {word:"phone",phonetic:"/foʊn/",meaning:"电话",example:"I phone Grandma on Sundays.",exampleCn:"我星期天给奶奶打电话。",category:"Module 5"},
+  {word:"too",phonetic:"/tuː/",meaning:"也",example:"I like football, too.",exampleCn:"我也喜欢足球。",category:"Module 5"},
 
-  // Unit 6 How many?
-  {word:"eleven",phonetic:"/ɪˈlevn/",meaning:"十一",example:"I have eleven crayons.",exampleCn:"我有十一支蜡笔。",category:"Unit 6"},
-  {word:"twelve",phonetic:"/twelv/",meaning:"十二",example:"There are twelve months.",exampleCn:"一年有十二个月。",category:"Unit 6"},
-  {word:"thirteen",phonetic:"/ˌθɜːrˈtiːn/",meaning:"十三",example:"I am thirteen years old.",exampleCn:"我十三岁了。",category:"Unit 6"},
-  {word:"fourteen",phonetic:"/ˌfɔːrˈtiːn/",meaning:"十四",example:"There are fourteen desks.",exampleCn:"有十四张桌子。",category:"Unit 6"},
-  {word:"fifteen",phonetic:"/ˌfɪfˈtiːn/",meaning:"十五",example:"I have fifteen books.",exampleCn:"我有十五本书。",category:"Unit 6"},
-  {word:"sixteen",phonetic:"/ˌsɪksˈtiːn/",meaning:"十六",example:"She is sixteen.",exampleCn:"她十六岁。",category:"Unit 6"},
-  {word:"seventeen",phonetic:"/ˌsevnˈtiːn/",meaning:"十七",example:"There are seventeen students.",exampleCn:"有十七个学生。",category:"Unit 6"},
-  {word:"eighteen",phonetic:"/ˌeɪˈtiːn/",meaning:"十八",example:"He is eighteen years old.",exampleCn:"他十八岁了。",category:"Unit 6"},
-  {word:"nineteen",phonetic:"/ˌnaɪnˈtiːn/",meaning:"十九",example:"I have nineteen pencils.",exampleCn:"我有十九支铅笔。",category:"Unit 6"},
-  {word:"twenty",phonetic:"/ˈtwenti/",meaning:"二十",example:"There are twenty chairs.",exampleCn:"有二十把椅子。",category:"Unit 6"},
-  {word:"kite",phonetic:"/kaɪt/",meaning:"风筝",example:"The kite is beautiful.",exampleCn:"这个风筝很漂亮。",category:"Unit 6"},
-  {word:"beautiful",phonetic:"/ˈbjuːtɪfl/",meaning:"美丽的",example:"How beautiful!",exampleCn:"多美啊！",category:"Unit 6"}
+  // Module 6 — What do you do on Sundays?
+  {word:"Sunday",phonetic:"/ˈsʌndeɪ/",meaning:"星期日",example:"What do you do on Sundays?",exampleCn:"你星期天做什么？",category:"Module 6"},
+  {word:"swimming",phonetic:"/ˈswɪmɪŋ/",meaning:"游泳",example:"I go swimming on Sundays.",exampleCn:"我星期天去游泳。",category:"Module 6"},
+  {word:"Saturday",phonetic:"/ˈsætərdeɪ/",meaning:"星期六",example:"On Saturday I watch TV.",exampleCn:"星期六我看电视。",category:"Module 6"},
+  {word:"watch",phonetic:"/wɒtʃ/",meaning:"看；观看",example:"I watch TV on Saturdays.",exampleCn:"我星期六看电视。",category:"Module 6"},
+  {word:"TV",phonetic:"/tiːˈviː/",meaning:"电视",example:"I watch TV at home.",exampleCn:"我在家看电视。",category:"Module 6"},
+  {word:"sleep",phonetic:"/sliːp/",meaning:"睡觉",example:"I sleep at nine.",exampleCn:"我九点睡觉。",category:"Module 6"},
+
+  // Module 7 — We fly kites in spring.
+  {word:"spring",phonetic:"/sprɪŋ/",meaning:"春天",example:"We fly kites in spring.",exampleCn:"我们春天放风筝。",category:"Module 7"},
+  {word:"summer",phonetic:"/ˈsʌmər/",meaning:"夏天",example:"We go swimming in summer.",exampleCn:"我们夏天去游泳。",category:"Module 7"},
+  {word:"autumn",phonetic:"/ˈɔːtəm/",meaning:"秋天",example:"We play football in autumn.",exampleCn:"我们秋天踢足球。",category:"Module 7"},
+  {word:"winter",phonetic:"/ˈwɪntər/",meaning:"冬天",example:"It's cold in winter.",exampleCn:"冬天很冷。",category:"Module 7"},
+  {word:"warm",phonetic:"/wɔːrm/",meaning:"温暖的",example:"It's warm in spring.",exampleCn:"春天很温暖。",category:"Module 7"},
+  {word:"hot",phonetic:"/hɒt/",meaning:"热的",example:"It's hot in summer.",exampleCn:"夏天很热。",category:"Module 7"},
+  {word:"cool",phonetic:"/kuːl/",meaning:"凉爽的",example:"It's cool in autumn.",exampleCn:"秋天很凉爽。",category:"Module 7"},
+  {word:"cold",phonetic:"/koʊld/",meaning:"寒冷的",example:"It's cold in winter.",exampleCn:"冬天很冷。",category:"Module 7"},
+  {word:"fly",phonetic:"/flaɪ/",meaning:"放（风筝）；飞",example:"We fly kites in spring.",exampleCn:"我们春天放风筝。",category:"Module 7"},
+  {word:"kite",phonetic:"/kaɪt/",meaning:"风筝",example:"I have a kite.",exampleCn:"我有一个风筝。",category:"Module 7"},
+
+  // Module 8 — It's on your desk.
+  {word:"toy",phonetic:"/tɔɪ/",meaning:"玩具",example:"It's a toy.",exampleCn:"这是一个玩具。",category:"Module 8"},
+  {word:"under",phonetic:"/ˈʌndər/",meaning:"在……下面",example:"The ball is under the bed.",exampleCn:"球在床下面。",category:"Module 8"},
+  {word:"behind",phonetic:"/bɪˈhaɪnd/",meaning:"在……后面",example:"The cat is behind the door.",exampleCn:"猫在门后面。",category:"Module 8"},
+  {word:"in",phonetic:"/ɪn/",meaning:"在……里面",example:"The book is in the bag.",exampleCn:"书在包里。",category:"Module 8"},
+  {word:"box",phonetic:"/bɒks/",meaning:"盒子；箱子",example:"It's in the box.",exampleCn:"它在盒子里。",category:"Module 8"},
+  {word:"bedroom",phonetic:"/ˈbedruːm/",meaning:"卧室",example:"It's in the bedroom.",exampleCn:"它在卧室里。",category:"Module 8"},
+
+  // Module 9 — Has he got a new book?
+  {word:"has got",phonetic:"/hæz ɡɒt/",meaning:"有（第三人称单数）",example:"He has got a new book.",exampleCn:"他有一本新书。",category:"Module 9"},
+  {word:"have got",phonetic:"/hæv ɡɒt/",meaning:"有",example:"I have got a new kite.",exampleCn:"我有一个新风筝。",category:"Module 9"},
+  {word:"dress",phonetic:"/dres/",meaning:"连衣裙",example:"She has got a new dress.",exampleCn:"她有一条新连衣裙。",category:"Module 9"},
+  {word:"coat",phonetic:"/koʊt/",meaning:"外套",example:"He has got a new coat.",exampleCn:"他有一件新外套。",category:"Module 9"},
+  {word:"sweater",phonetic:"/ˈswetər/",meaning:"毛衣",example:"I have got a sweater.",exampleCn:"我有一件毛衣。",category:"Module 9"},
+  {word:"T-shirt",phonetic:"/ˈtiːʃɜːrt/",meaning:"T恤衫",example:"He has got a T-shirt.",exampleCn:"他有一件T恤衫。",category:"Module 9"},
+
+  // Module 10 — She's got a pet.
+  {word:"pet",phonetic:"/pet/",meaning:"宠物",example:"She's got a pet.",exampleCn:"她有一只宠物。",category:"Module 10"},
+  {word:"cat",phonetic:"/kæt/",meaning:"猫",example:"I've got a cat.",exampleCn:"我有一只猫。",category:"Module 10"},
+  {word:"dog",phonetic:"/dɒɡ/",meaning:"狗",example:"He's got a dog.",exampleCn:"他有一只狗。",category:"Module 10"},
+  {word:"bird",phonetic:"/bɜːrd/",meaning:"鸟",example:"She's got a bird.",exampleCn:"她有一只鸟。",category:"Module 10"},
+  {word:"head",phonetic:"/hed/",meaning:"头",example:"It's got a big head.",exampleCn:"它有一个大脑袋。",category:"Module 10"},
+  {word:"leg",phonetic:"/leɡ/",meaning:"腿",example:"It's got long legs.",exampleCn:"它有长腿。",category:"Module 10"},
+  {word:"body",phonetic:"/ˈbɒdi/",meaning:"身体",example:"It's got a small body.",exampleCn:"它有一个小身体。",category:"Module 10"},
+  {word:"tail",phonetic:"/teɪl/",meaning:"尾巴",example:"It's got a long tail.",exampleCn:"它有一条长尾巴。",category:"Module 10"}
 ];
