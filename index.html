@@ -2,10 +2,87 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=unity单词弹窗.html">
-<title>跳转中...</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>背单词工具</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  color: #e0e0e0;
+}
+.container {
+  background: rgba(255,255,255,0.08); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 20px;
+  padding: 40px; width: 520px; max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4); position: relative; overflow: hidden;
+}
+.container::before {
+  content: ''; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
+  background: linear-gradient(45deg, #e94560, #533483, #0f3460, #e94560);
+  border-radius: 21px; z-index: -1; background-size: 400%; animation: glow 8s ease infinite;
+}
+@keyframes glow { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+.title { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 8px; color: #fff; }
+.subtitle { font-size: 14px; text-align: center; color: #888; margin-bottom: 28px; }
+.book-list { display: flex; flex-direction: column; gap: 12px; }
+.book-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+  background: rgba(255,255,255,0.04); cursor: pointer; transition: all 0.2s;
+  text-decoration: none; color: inherit;
+}
+.book-item:hover { background: rgba(255,255,255,0.1); border-color: rgba(233,69,96,0.4); }
+.book-item:active { transform: scale(0.98); }
+.book-icon { font-size: 32px; flex-shrink: 0; }
+.book-info { flex: 1; }
+.book-name { font-size: 17px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.book-desc { font-size: 13px; color: #888; }
+.book-count {
+  font-size: 12px; padding: 4px 10px; border-radius: 8px;
+  background: rgba(233,69,96,0.15); color: #e94560; white-space: nowrap;
+}
+.add-hint {
+  text-align: center; margin-top: 20px; font-size: 13px; color: #555;
+}
+</style>
 </head>
 <body>
-<p>正在跳转到 <a href="unity单词弹窗.html">Unity背单词工具</a>...</p>
+<div class="container">
+  <div class="title">📚 背单词工具</div>
+  <div class="subtitle">选择一个单词本开始学习</div>
+  <div class="book-list" id="bookList"></div>
+  <div class="add-hint">更多单词本持续添加中...</div>
+</div>
+<script>
+const books = [
+  {
+    name: "Unity 游戏开发",
+    desc: "Unity引擎相关专业术语，涵盖核心概念、物理、渲染、动画等",
+    icon: "🎮",
+    file: "unity单词弹窗.html",
+    count: "170+"
+  }
+  // 在这里添加更多单词本：
+  // { name: "xxx", desc: "xxx", icon: "📖", file: "xxx.html", count: "xx" }
+];
+
+const list = document.getElementById('bookList');
+books.forEach(book => {
+  const a = document.createElement('a');
+  a.className = 'book-item';
+  a.href = book.file;
+  a.innerHTML = `
+    <span class="book-icon">${book.icon}</span>
+    <div class="book-info">
+      <div class="book-name">${book.name}</div>
+      <div class="book-desc">${book.desc}</div>
+    </div>
+    <span class="book-count">${book.count}词</span>
+  `;
+  list.appendChild(a);
+});
+</script>
 </body>
 </html>

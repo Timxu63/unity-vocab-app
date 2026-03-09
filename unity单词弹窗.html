@@ -898,6 +898,7 @@ function renderDashboard() {
 
   app.innerHTML = `
     <button class="dashboard-settings" onclick="AppState.switchView('settings')" title="设置">⚙️</button>
+    <button class="dashboard-settings" style="right:48px" onclick="location.href='index.html'" title="切换单词本">📚</button>
     <div class="dashboard-title">📚 Unity词汇学习</div>
     <div class="dashboard-stats">
       <span class="stat-item"><span class="stat-dot" style="background:#e94560"></span> 已学天数: ${stats.daysLearned}</span>
