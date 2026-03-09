@@ -54,6 +54,45 @@ body {
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot-forget { background: #e94560; } .dot-fuzzy { background: #ffb74d; } .dot-know { background: #66bb6a; }
 .keyboard-hint { text-align: center; margin-top: 14px; font-size: 12px; color: #555; }
+
+/* Spelling mode styles */
+.spell-input-wrap { position: relative; margin-bottom: 16px; }
+.spell-input {
+  width: 100%; padding: 14px 16px; border: 2px solid rgba(255,255,255,0.15); border-radius: 12px;
+  background: rgba(255,255,255,0.06); color: #fff; font-size: 22px; font-weight: 600;
+  letter-spacing: 2px; text-align: center; outline: none; transition: border-color 0.3s;
+  font-family: 'Segoe UI', 'Microsoft YaHei', monospace;
+}
+.spell-input:focus { border-color: rgba(233,69,96,0.6); }
+.spell-input.correct { border-color: #66bb6a; background: rgba(76,175,80,0.1); }
+.spell-input.wrong { border-color: #e94560; background: rgba(233,69,96,0.1); }
+.spell-hint-letters {
+  display: flex; justify-content: center; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.spell-letter-box {
+  width: 32px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12); transition: all 0.2s; text-transform: none;
+}
+.spell-letter-box.revealed { background: rgba(233,69,96,0.2); color: #e94560; }
+.spell-letter-box.matched { background: rgba(76,175,80,0.2); color: #66bb6a; }
+.spell-feedback { text-align: center; font-size: 15px; min-height: 24px; margin-bottom: 12px; transition: opacity 0.3s; }
+.spell-feedback.success { color: #66bb6a; }
+.spell-feedback.fail { color: #e94560; }
+.spell-actions { display: flex; gap: 12px; justify-content: center; margin-bottom: 12px; }
+.spell-actions .btn { flex: none; padding: 10px 20px; font-size: 14px; }
+.btn-hint { background: rgba(255,183,77,0.2); color: #ffb74d; }
+.btn-hint:hover { background: rgba(255,183,77,0.35); }
+.btn-skip { background: rgba(255,255,255,0.08); color: #aaa; }
+.btn-skip:hover { background: rgba(255,255,255,0.15); }
+.btn-next { background: rgba(76,175,80,0.2); color: #66bb6a; }
+.btn-next:hover { background: rgba(76,175,80,0.35); }
+.spell-answer-reveal {
+  text-align: center; font-size: 20px; font-weight: 700; color: #e94560;
+  margin-bottom: 12px; letter-spacing: 1px;
+}
+.nav-btn-spell { background: rgba(0,188,212,0.2); color: #4dd0e1; }
+.nav-btn-spell:hover:not(:disabled) { background: rgba(0,188,212,0.35); }
 .complete { text-align: center; padding: 40px 0; }
 .complete h2 { font-size: 28px; margin-bottom: 16px; color: #fff; }
 .complete p { color: #aaa; margin-bottom: 8px; }
@@ -774,7 +813,7 @@ const AppState = {
 
   switchView(targetView) {
     // Save current session progress if in a learning/review mode
-    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn') {
+    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn' || this.currentView === 'spelling') {
       this.saveSession();
     }
 
@@ -798,6 +837,9 @@ const AppState = {
         break;
       case 'extractedLearn':
         renderExtractedLearn();
+        break;
+      case 'spelling':
+        renderSpelling();
         break;
       case 'settings':
         renderSettings();
@@ -888,6 +930,13 @@ function renderDashboard() {
   navButtons += `<button class="nav-btn nav-btn-library" onclick="AppState.switchView('library')">
     <span>📋 已学单词库<br><span class="nav-sub">已收录: ${stats.totalLearned}个</span></span>
   </button>`;
+
+  // 拼写练习按钮
+  if (stats.totalLearned > 0) {
+    navButtons += `<button class="nav-btn nav-btn-spell" onclick="AppState.switchView('spelling')">
+      <span>✏️ 拼写练习<br><span class="nav-sub">已学单词拼写测试</span></span>
+    </button>`;
+  }
 
   // 例句词汇按钮（无提取词时隐藏）
   if (extractedCount > 0) {
@@ -1602,6 +1651,306 @@ function extractedAnswer(type) {
   renderExtractedCard();
 }
 
+// ===== Spelling 拼写练习模式 =====
+const SpellingState = {
+  hintsUsed: 0,
+  maxHints: 3,
+  answered: false,
+  currentAnswer: ''
+};
+
+function renderSpelling() {
+  const app = document.getElementById('app');
+  const progress = AppState.data.progress;
+  const learnedKeys = Object.keys(progress);
+
+  if (learnedKeys.length === 0) {
+    app.innerHTML = `
+      <div class="complete">
+        <h2>✏️ 拼写练习</h2>
+        <p>还没有学过的单词，先去学习吧</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回</button>
+      </div>`;
+    return;
+  }
+
+  // Build deck from learned words
+  const deck = learnedKeys
+    .map(key => words.find(w => w.word === key))
+    .filter(Boolean);
+
+  // Shuffle
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  // Limit to 20 words per session
+  const sessionDeck = deck.slice(0, 20);
+
+  AppState.sessionState = {
+    deck: sessionDeck,
+    currentIndex: 0,
+    revealed: false,
+    stats: { forget: 0, fuzzy: 0, know: 0 },
+    reviewQueue: [],
+    mode: 'spelling'
+  };
+
+  SpellingState.hintsUsed = 0;
+  SpellingState.answered = false;
+  SpellingState.currentAnswer = '';
+
+  renderSpellingCard();
+}
+
+function renderSpellingCard() {
+  const ss = AppState.sessionState;
+  const app = document.getElementById('app');
+
+  if (ss.currentIndex >= ss.deck.length) {
+    const total = ss.stats.know + ss.stats.forget;
+    const knowPct = total ? Math.round((ss.stats.know / total) * 100) : 0;
+
+    app.innerHTML = `
+      <div class="complete">
+        <h2>✏️ 拼写练习完成</h2>
+        <p>共测试 ${total} 个单词</p>
+        <p>✅ 正确 ${ss.stats.know} &nbsp; ❌ 错误 ${ss.stats.forget}</p>
+        <p>正确率 ${knowPct}%</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回主页</button>
+        <button class="restart" style="margin-left:8px" onclick="renderSpelling()">再来一轮</button>
+      </div>`;
+    return;
+  }
+
+  const w = ss.deck[ss.currentIndex];
+  const total = ss.deck.length;
+  const pct = Math.round((ss.currentIndex / total) * 100);
+
+  SpellingState.hintsUsed = 0;
+  SpellingState.answered = false;
+  SpellingState.currentAnswer = '';
+
+  // Build letter boxes (all hidden initially)
+  const letterBoxes = w.word.split('').map((ch, i) => {
+    if (ch === ' ' || ch === '-') {
+      return `<span class="spell-letter-box" style="background:none;border:none;width:16px;">${ch}</span>`;
+    }
+    return `<span class="spell-letter-box" id="spell-l-${i}" data-ch="${ch}">_</span>`;
+  }).join('');
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="AppState.switchView('dashboard')">← 返回</button>
+    <div class="progress-bar">
+      <span>${ss.currentIndex + 1} / ${total}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>${pct}%</span>
+    </div>
+    <div class="category">${w.category}</div>
+    <div class="meaning" style="cursor:default;">${w.meaning}</div>
+    <div class="phonetic">${w.phonetic} ${speakBtnHtml(w.word, 'speak-spell')}</div>
+    <div class="spell-hint-letters" id="spell-letters">${letterBoxes}</div>
+    <div class="spell-input-wrap">
+      <input class="spell-input" id="spell-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+        placeholder="输入单词拼写..." oninput="onSpellInput(this)" onkeydown="onSpellKeydown(event)">
+    </div>
+    <div class="spell-feedback" id="spell-feedback"></div>
+    <div class="spell-actions" id="spell-actions">
+      <button class="btn btn-hint" onclick="spellHint()" title="提示一个字母">💡 提示 (${SpellingState.maxHints - SpellingState.hintsUsed})</button>
+      <button class="btn btn-skip" onclick="spellSkip()">⏭ 跳过</button>
+    </div>
+    <div class="stats">
+      <span><span class="dot dot-know"></span> 正确 ${ss.stats.know}</span>
+      <span><span class="dot dot-forget"></span> 错误 ${ss.stats.forget}</span>
+    </div>
+    <div class="keyboard-hint">回车 = 提交 &nbsp;|&nbsp; Tab = 提示 &nbsp;|&nbsp; Esc = 返回</div>
+  `;
+
+  // Focus input
+  setTimeout(() => {
+    const input = document.getElementById('spell-input');
+    if (input) input.focus();
+  }, 50);
+}
+
+function onSpellInput(el) {
+  if (SpellingState.answered) return;
+  const ss = AppState.sessionState;
+  const w = ss.deck[ss.currentIndex];
+  const typed = el.value;
+
+  // Update letter boxes to show matched characters
+  const target = w.word;
+  for (let i = 0; i < target.length; i++) {
+    const box = document.getElementById('spell-l-' + i);
+    if (!box) continue;
+    if (i < typed.length && typed[i].toLowerCase() === target[i].toLowerCase()) {
+      box.textContent = target[i];
+      box.classList.add('matched');
+      box.classList.remove('revealed');
+    } else if (box.classList.contains('revealed')) {
+      // Keep revealed hints
+    } else {
+      box.textContent = '_';
+      box.classList.remove('matched');
+    }
+  }
+}
+
+function onSpellKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (SpellingState.answered) {
+      spellNext();
+    } else {
+      spellSubmit();
+    }
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    if (!SpellingState.answered) spellHint();
+  }
+}
+
+function spellSubmit() {
+  if (SpellingState.answered) return;
+  const ss = AppState.sessionState;
+  const w = ss.deck[ss.currentIndex];
+  const input = document.getElementById('spell-input');
+  const feedback = document.getElementById('spell-feedback');
+  const actions = document.getElementById('spell-actions');
+  const typed = (input.value || '').trim();
+
+  if (!typed) return;
+
+  SpellingState.answered = true;
+  SpellingState.currentAnswer = typed;
+
+  const isCorrect = typed.toLowerCase() === w.word.toLowerCase();
+
+  if (isCorrect) {
+    ss.stats.know++;
+    input.classList.add('correct');
+    input.disabled = true;
+    feedback.className = 'spell-feedback success';
+    feedback.textContent = '✅ 正确！';
+
+    // Reveal all letters
+    revealAllLetters(w.word, true);
+
+    // Update mastery
+    ReviewEngine.updateReview(AppState.data, w.word, 'know');
+  } else {
+    ss.stats.forget++;
+    input.classList.add('wrong');
+    input.disabled = true;
+    feedback.className = 'spell-feedback fail';
+    feedback.innerHTML = '❌ 正确拼写：<span class="spell-answer-reveal" style="display:inline">' + w.word + '</span>';
+
+    // Reveal all letters
+    revealAllLetters(w.word, false);
+
+    // Update mastery
+    ReviewEngine.updateReview(AppState.data, w.word, 'forget');
+
+    // Add to review queue
+    ss.reviewQueue.push(w);
+  }
+
+  actions.innerHTML = '<button class="btn btn-next" onclick="spellNext()">下一个 →</button>';
+  AppState.saveSession();
+}
+
+function revealAllLetters(word, correct) {
+  for (let i = 0; i < word.length; i++) {
+    const box = document.getElementById('spell-l-' + i);
+    if (!box) continue;
+    box.textContent = word[i];
+    box.classList.add(correct ? 'matched' : 'revealed');
+  }
+}
+
+function spellHint() {
+  if (SpellingState.answered) return;
+  if (SpellingState.hintsUsed >= SpellingState.maxHints) return;
+
+  const ss = AppState.sessionState;
+  const w = ss.deck[ss.currentIndex];
+  const target = w.word;
+  const input = document.getElementById('spell-input');
+  const typed = input.value || '';
+
+  // Find first unrevealed, unmatched letter
+  for (let i = 0; i < target.length; i++) {
+    const box = document.getElementById('spell-l-' + i);
+    if (!box) continue;
+    if (box.classList.contains('revealed') || box.classList.contains('matched')) continue;
+    // Reveal this letter
+    box.textContent = target[i];
+    box.classList.add('revealed');
+    SpellingState.hintsUsed++;
+
+    // Update hint button text
+    const hintBtn = document.querySelector('.btn-hint');
+    if (hintBtn) {
+      const remaining = SpellingState.maxHints - SpellingState.hintsUsed;
+      if (remaining <= 0) {
+        hintBtn.disabled = true;
+        hintBtn.textContent = '💡 无提示';
+      } else {
+        hintBtn.textContent = '💡 提示 (' + remaining + ')';
+      }
+    }
+    break;
+  }
+
+  input.focus();
+}
+
+function spellSkip() {
+  if (SpellingState.answered) return;
+  const ss = AppState.sessionState;
+  const w = ss.deck[ss.currentIndex];
+
+  SpellingState.answered = true;
+  ss.stats.forget++;
+
+  const input = document.getElementById('spell-input');
+  const feedback = document.getElementById('spell-feedback');
+  const actions = document.getElementById('spell-actions');
+
+  if (input) { input.classList.add('wrong'); input.disabled = true; }
+  feedback.className = 'spell-feedback fail';
+  feedback.innerHTML = '⏭ 已跳过，正确拼写：<span class="spell-answer-reveal" style="display:inline">' + w.word + '</span>';
+
+  revealAllLetters(w.word, false);
+
+  ReviewEngine.updateReview(AppState.data, w.word, 'forget');
+  ss.reviewQueue.push(w);
+
+  actions.innerHTML = '<button class="btn btn-next" onclick="spellNext()">下一个 →</button>';
+  AppState.saveSession();
+}
+
+function spellNext() {
+  const ss = AppState.sessionState;
+  ss.currentIndex++;
+
+  // If deck exhausted but review queue has items, cycle them
+  if (ss.currentIndex >= ss.deck.length && ss.reviewQueue.length > 0) {
+    const rq = ss.reviewQueue.slice();
+    for (let i = rq.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rq[i], rq[j]] = [rq[j], rq[i]];
+    }
+    ss.deck = rq;
+    ss.reviewQueue = [];
+    ss.currentIndex = 0;
+  }
+
+  renderSpellingCard();
+}
+
 // 打乱顺序
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -1707,7 +2056,7 @@ document.addEventListener('keydown', e => {
   
   // Escape key: return to previous level
   if (e.key === 'Escape') {
-    if (view === 'dailyLearn' || view === 'review' || view === 'library' || view === 'extractedLearn' || view === 'settings') {
+    if (view === 'dailyLearn' || view === 'review' || view === 'library' || view === 'extractedLearn' || view === 'settings' || view === 'spelling') {
       AppState.switchView('dashboard');
     } else if (view === 'wordDetail') {
       AppState.switchView('library');
@@ -1738,7 +2087,7 @@ document.addEventListener('keydown', e => {
 AppState.init();
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
+  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
 }
 </script>
 </body>
