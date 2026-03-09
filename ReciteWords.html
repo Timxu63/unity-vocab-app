@@ -93,12 +93,31 @@ body {
 }
 .nav-btn-spell { background: rgba(0,188,212,0.2); color: #4dd0e1; }
 .nav-btn-spell:hover:not(:disabled) { background: rgba(0,188,212,0.35); }
+.btn-submit { background: rgba(83,52,131,0.3); color: #b388ff; }
+.btn-submit:hover { background: rgba(83,52,131,0.5); }
 .complete { text-align: center; padding: 40px 0; }
 .complete h2 { font-size: 28px; margin-bottom: 16px; color: #fff; }
 .complete p { color: #aaa; margin-bottom: 8px; }
 .complete .restart { margin-top: 24px; padding: 12px 36px; background: rgba(233,69,96,0.25);
   color: #e94560; border: none; border-radius: 12px; font-size: 15px; cursor: pointer; font-weight: 600; }
 .complete .restart:hover { background: rgba(233,69,96,0.4); }
+
+/* Mobile responsive styles */
+@media (max-width: 600px) {
+  .card { padding: 20px 16px; }
+  .spell-input { font-size: 18px; padding: 12px 14px; }
+  .spell-letter-box { width: 26px; height: 32px; font-size: 15px; }
+  .spell-hint-letters { gap: 4px; }
+  .spell-actions { flex-wrap: wrap; }
+  .spell-actions .btn { padding: 12px 18px; font-size: 14px; min-height: 44px; }
+  .keyboard-hint { display: none; }
+  .keyboard-hint-mobile { display: block; }
+  .btns .btn { min-height: 44px; }
+}
+@media (min-width: 601px) {
+  .keyboard-hint-mobile { display: none; }
+}
+.keyboard-hint-mobile { text-align: center; margin-top: 10px; font-size: 12px; color: #555; }
 
 /* Dashboard styles */
 .dashboard-title { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 20px; color: #fff; }
@@ -1081,6 +1100,7 @@ function renderCurrentCard() {
       <span><span class="dot dot-know"></span> 认识 ${ss.stats.know}</span>
     </div>
     <div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>
+    <div class="keyboard-hint-mobile">点击释义区域显示 &nbsp;|&nbsp; 点击按钮作答</div>
   `;
 }
 
@@ -1276,6 +1296,7 @@ function renderReviewCard() {
       <span><span class="dot dot-know"></span> 认识 ${ss.stats.know}</span>
     </div>
     <div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>
+    <div class="keyboard-hint-mobile">点击释义区域显示 &nbsp;|&nbsp; 点击按钮作答</div>
   `;
 }
 
@@ -1595,7 +1616,8 @@ function renderExtractedCard() {
       '<span><span class="dot dot-fuzzy"></span> 模糊 ' + ss.stats.fuzzy + '</span>' +
       '<span><span class="dot dot-know"></span> 认识 ' + ss.stats.know + '</span>' +
     '</div>' +
-    '<div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>';
+    '<div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>' +
+    '<div class="keyboard-hint-mobile">点击释义区域显示 &nbsp;|&nbsp; 点击按钮作答</div>';
 }
 
 function extractedToggleReveal() {
@@ -1758,6 +1780,7 @@ function renderSpellingCard() {
     <div class="spell-feedback" id="spell-feedback"></div>
     <div class="spell-actions" id="spell-actions">
       <button class="btn btn-hint" onclick="spellHint()" title="提示一个字母">💡 提示 (${SpellingState.maxHints - SpellingState.hintsUsed})</button>
+      <button class="btn btn-submit" onclick="spellSubmit()">✅ 提交</button>
       <button class="btn btn-skip" onclick="spellSkip()">⏭ 跳过</button>
     </div>
     <div class="stats">
@@ -1765,6 +1788,7 @@ function renderSpellingCard() {
       <span><span class="dot dot-forget"></span> 错误 ${ss.stats.forget}</span>
     </div>
     <div class="keyboard-hint">回车 = 提交 &nbsp;|&nbsp; Tab = 提示 &nbsp;|&nbsp; Esc = 返回</div>
+    <div class="keyboard-hint-mobile">点击「提交」检查拼写 &nbsp;|&nbsp;「提示」揭示字母</div>
   `;
 
   // Focus input
@@ -2010,6 +2034,7 @@ function render() {
       <span><span class="dot dot-know"></span> 认识 ${stats.know}</span>
     </div>
     <div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>
+    <div class="keyboard-hint-mobile">点击释义区域显示 &nbsp;|&nbsp; 点击按钮作答</div>
   `;
 }
 
