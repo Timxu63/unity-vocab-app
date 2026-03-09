@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity背单词弹窗</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  color: #e0e0e0;
+}
+.card {
+  background: rgba(255,255,255,0.08); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 20px;
+  padding: 40px; width: 520px; max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4); position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
+  background: linear-gradient(45deg, #e94560, #533483, #0f3460, #e94560);
+  border-radius: 21px; z-index: -1; background-size: 400%; animation: glow 8s ease infinite;
+}
+@keyframes glow { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+.progress-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; font-size: 14px; color: #aaa; }
+.progress-track { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #e94560, #533483); border-radius: 3px; transition: width 0.4s ease; }
+.category { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; background: rgba(233,69,96,0.2); color: #e94560; margin-bottom: 16px; }
+.word { font-size: 36px; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; color: #fff; }
+.phonetic { font-size: 15px; color: #888; margin-bottom: 20px; }
+.meaning { font-size: 18px; line-height: 1.7; color: #ccc; min-height: 60px; padding: 16px;
+  background: rgba(255,255,255,0.04); border-radius: 12px; margin-bottom: 10px;
+  transition: opacity 0.3s; cursor: pointer; user-select: none; }
+.meaning.hidden { color: transparent; text-shadow: 0 0 16px rgba(255,255,255,0.3); }
+.meaning .hint { font-size: 13px; color: #666; display: block; margin-top: 4px; }
+.meaning.hidden .hint { display: none; }
+.example { font-size: 13px; color: #777; line-height: 1.6; margin-bottom: 24px; padding: 0 4px;
+  min-height: 40px; transition: opacity 0.3s; }
+.example.hidden { opacity: 0; }
+.btns { display: flex; gap: 12px; }
+.btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; }
+.btn:active { transform: scale(0.96); }
+.btn-forget { background: rgba(233,69,96,0.2); color: #e94560; }
+.btn-forget:hover { background: rgba(233,69,96,0.35); }
+.btn-fuzzy { background: rgba(255,183,77,0.2); color: #ffb74d; }
+.btn-fuzzy:hover { background: rgba(255,183,77,0.35); }
+.btn-know { background: rgba(76,175,80,0.2); color: #66bb6a; }
+.btn-know:hover { background: rgba(76,175,80,0.35); }
+.stats { display: flex; justify-content: center; gap: 30px; margin-top: 20px; font-size: 13px; color: #666; }
+.stats span { display: flex; align-items: center; gap: 4px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-forget { background: #e94560; } .dot-fuzzy { background: #ffb74d; } .dot-know { background: #66bb6a; }
+.keyboard-hint { text-align: center; margin-top: 14px; font-size: 12px; color: #555; }
+.complete { text-align: center; padding: 40px 0; }
+.complete h2 { font-size: 28px; margin-bottom: 16px; color: #fff; }
+.complete p { color: #aaa; margin-bottom: 8px; }
+.complete .restart { margin-top: 24px; padding: 12px 36px; background: rgba(233,69,96,0.25);
+  color: #e94560; border: none; border-radius: 12px; font-size: 15px; cursor: pointer; font-weight: 600; }
+.complete .restart:hover { background: rgba(233,69,96,0.4); }
+
+/* Dashboard styles */
+.dashboard-title { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 20px; color: #fff; }
+.dashboard-stats {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;
+  margin-bottom: 24px; font-size: 13px; color: #aaa;
+}
+.dashboard-stats .stat-item { display: flex; align-items: center; gap: 5px; }
+.dashboard-stats .stat-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dashboard-nav { display: flex; flex-direction: column; gap: 12px; }
+.dashboard-nav .nav-btn {
+  width: 100%; padding: 16px 20px; border: none; border-radius: 12px;
+  font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  text-align: left; display: flex; justify-content: space-between; align-items: center;
+}
+.dashboard-nav .nav-btn:active { transform: scale(0.98); }
+.dashboard-nav .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dashboard-nav .nav-btn:disabled:active { transform: none; }
+.nav-btn-learn { background: rgba(233,69,96,0.2); color: #e94560; }
+.nav-btn-learn:hover:not(:disabled) { background: rgba(233,69,96,0.35); }
+.nav-btn-review { background: rgba(83,52,131,0.25); color: #b388ff; }
+.nav-btn-review:hover:not(:disabled) { background: rgba(83,52,131,0.4); }
+.nav-btn-library { background: rgba(102,187,106,0.2); color: #66bb6a; }
+.nav-btn-library:hover:not(:disabled) { background: rgba(102,187,106,0.35); }
+.nav-btn-extracted { background: rgba(255,183,77,0.2); color: #ffb74d; }
+.nav-btn-extracted:hover:not(:disabled) { background: rgba(255,183,77,0.35); }
+.nav-btn .nav-sub { font-size: 12px; opacity: 0.7; }
+.dashboard-settings {
+  position: absolute; top: 16px; right: 16px; background: none; border: none;
+  color: #888; font-size: 20px; cursor: pointer; transition: color 0.2s;
+}
+.dashboard-settings:hover { color: #e0e0e0; }
+.back-btn {
+  background: none; border: none; color: #888; font-size: 14px; cursor: pointer;
+  padding: 4px 0; margin-bottom: 16px; transition: color 0.2s;
+}
+.back-btn:hover { color: #e0e0e0; }
+.settings-title { font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 24px; color: #fff; }
+.settings-group {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 20px; padding: 16px; background: rgba(255,255,255,0.04); border-radius: 12px;
+}
+.settings-group label { font-size: 14px; color: #ccc; white-space: nowrap; }
+.settings-input {
+  width: 70px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+  background: rgba(255,255,255,0.08); color: #fff; font-size: 15px; text-align: center;
+  outline: none; transition: border-color 0.2s;
+}
+.settings-input:focus { border-color: rgba(233,69,96,0.6); }
+.settings-save-btn {
+  padding: 8px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; background: rgba(233,69,96,0.2); color: #e94560; transition: background 0.2s;
+}
+.settings-save-btn:hover { background: rgba(233,69,96,0.35); }
+.settings-danger-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600;
+  cursor: pointer; background: rgba(220,53,69,0.15); color: #ff6b6b; transition: background 0.2s;
+  margin-top: 12px;
+}
+.settings-danger-btn:hover { background: rgba(220,53,69,0.3); }
+
+/* Library styles */
+.library-search {
+  width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+  background: rgba(255,255,255,0.08); color: #fff; font-size: 14px; outline: none;
+  margin-bottom: 12px; transition: border-color 0.2s;
+}
+.library-search::placeholder { color: #666; }
+.library-search:focus { border-color: rgba(233,69,96,0.6); }
+.library-filters {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;
+}
+.library-filter-btn {
+  padding: 6px 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+  background: rgba(255,255,255,0.06); color: #aaa; font-size: 13px; cursor: pointer;
+  transition: all 0.2s;
+}
+.library-filter-btn:hover { background: rgba(255,255,255,0.12); color: #e0e0e0; }
+.library-filter-btn.active { background: rgba(233,69,96,0.2); color: #e94560; border-color: rgba(233,69,96,0.4); }
+.library-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+.library-item {
+  display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+  background: rgba(255,255,255,0.04); border-radius: 10px; cursor: pointer; transition: background 0.2s;
+}
+.library-item:hover { background: rgba(255,255,255,0.1); }
+.library-item-word { font-size: 16px; font-weight: 600; color: #fff; }
+.library-item-word small { font-size: 12px; font-weight: 400; color: #666; margin-left: 6px; }
+.library-item-meaning { font-size: 13px; color: #999; flex: 1; margin: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mastery-badge {
+  font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; white-space: nowrap;
+}
+.mastery-badge.forget { background: rgba(233,69,96,0.2); color: #e94560; }
+.mastery-badge.fuzzy { background: rgba(255,183,77,0.2); color: #ffb74d; }
+.mastery-badge.know { background: rgba(76,175,80,0.2); color: #66bb6a; }
+
+/* Word detail styles */
+.word-detail-section { padding: 14px; background: rgba(255,255,255,0.04); border-radius: 12px; margin-bottom: 12px; }
+.word-detail-label { font-size: 13px; color: #888; margin-bottom: 4px; }
+.word-detail-value { font-size: 15px; color: #e0e0e0; }
+.history-timeline { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+.history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 8px; font-size: 13px; color: #aaa; }
+
+/* TTS speak button */
+.speak-btn {
+  background: none; border: none; cursor: pointer; font-size: 18px; padding: 2px 6px;
+  opacity: 0.6; transition: opacity 0.2s, transform 0.15s; vertical-align: middle;
+}
+.speak-btn:hover { opacity: 1; }
+.speak-btn:active { transform: scale(0.9); }
+.speak-btn.speaking { opacity: 1; animation: pulse-speak 0.8s ease infinite; }
+@keyframes pulse-speak { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+
+/* Example translation */
+.example-cn { font-size: 12px; color: #997755; line-height: 1.5; margin-top: 2px; padding: 0 4px; transition: opacity 0.3s; }
+.example-cn.hidden { opacity: 0; }
+</style>
+</head>
+<body>
+<div class="card" id="app"></div>
+<script>
+// ===== TTS 语音朗读工具 =====
+const TTS = {
+  supported: typeof window !== 'undefined' && 'speechSynthesis' in window,
+  _currentBtn: null,
+
+  speak(text, btn) {
+    if (!this.supported) return;
+    window.speechSynthesis.cancel();
+    if (this._currentBtn) this._currentBtn.classList.remove('speaking');
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'en-US';
+    // Try to pick an English voice
+    const voices = window.speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang.startsWith('en'));
+    if (enVoice) utter.voice = enVoice;
+    if (btn) { btn.classList.add('speaking'); this._currentBtn = btn; }
+    utter.onend = () => { if (btn) btn.classList.remove('speaking'); this._currentBtn = null; };
+    utter.onerror = () => { if (btn) btn.classList.remove('speaking'); this._currentBtn = null; };
+    window.speechSynthesis.speak(utter);
+  }
+};
+// Preload voices
+if (TTS.supported) window.speechSynthesis.getVoices();
+
+const words = [
+  // ===== 核心概念 =====
+  {word:"GameObject",phonetic:"/ɡeɪm ˈɒbdʒɪkt/",meaning:"游戏对象 — Unity场景中所有实体的基类，是组件的容器",example:"Every item in a Unity scene is a GameObject.",exampleCn:"Unity场景中的每个物体都是一个游戏对象。",category:"核心概念"},
+  {word:"Component",phonetic:"/kəmˈpoʊnənt/",meaning:"组件 — 附加到GameObject上的功能模块，定义其行为和外观",example:"Add a Rigidbody component to enable physics.",exampleCn:"添加一个刚体组件来启用物理效果。",category:"核心概念"},
+  {word:"Transform",phonetic:"/trænsˈfɔːrm/",meaning:"变换 — 每个GameObject必有的组件，控制位置、旋转和缩放",example:"Use Transform.position to move the object.",exampleCn:"使用Transform.position来移动对象。",category:"核心概念"},
+  {word:"Prefab",phonetic:"/ˈpriːfæb/",meaning:"预制体 — 可复用的GameObject模板，存储为项目资源",example:"Instantiate a prefab to spawn enemies at runtime.",exampleCn:"在运行时实例化预制体来生成敌人。",category:"核心概念"},
+  {word:"Scene",phonetic:"/siːn/",meaning:"场景 — 包含游戏环境和菜单的独立内容单元",example:"Load the next scene using SceneManager.",exampleCn:"使用SceneManager加载下一个场景。",category:"核心概念"},
+  {word:"Asset",phonetic:"/ˈæset/",meaning:"资源 — 项目中使用的任何媒体或数据文件",example:"Import the texture asset into the project.",exampleCn:"将纹理资源导入到项目中。",category:"核心概念"},
+  {word:"Tag",phonetic:"/tæɡ/",meaning:"标签 — 用于标识和分类GameObject的引用字符串",example:"Use CompareTag(\"Player\") to check identity.",exampleCn:"使用CompareTag(\"Player\")来检查身份。",category:"核心概念"},
+  {word:"Layer",phonetic:"/ˈleɪər/",meaning:"层 — 用于选择性渲染、碰撞检测和射线投射的分组机制",example:"Set the layer to 'Ignore Raycast' to skip detection.",exampleCn:"将层设置为'忽略射线检测'来跳过检测。",category:"核心概念"},
+  {word:"Script",phonetic:"/skrɪpt/",meaning:"脚本 — 用C#编写的代码文件，定义游戏逻辑和行为",example:"Attach the PlayerController script to the character.",exampleCn:"将PlayerController脚本附加到角色上。",category:"核心概念"},
+  {word:"Package",phonetic:"/ˈpækɪdʒ/",meaning:"包 — 通过Package Manager管理的功能模块集合",example:"Install the Input System package from the registry.",exampleCn:"从注册表安装输入系统包。",category:"核心概念"},
+  {word:"Parent",phonetic:"/ˈpɛrənt/",meaning:"父对象 — 在层级中包含子对象的GameObject",example:"Set the weapon as a child of the player's hand.",exampleCn:"将武器设为玩家手部的子对象。",category:"核心概念"},
+  {word:"Nested Prefab",phonetic:"/nestɪd ˈpriːfæb/",meaning:"嵌套预制体 — 包含其他预制体实例的预制体",example:"Nest the wheel prefab inside the car prefab.",exampleCn:"将车轮预制体嵌套在汽车预制体内。",category:"核心概念"},
+  {word:"Prefab Variant",phonetic:"/ˈpriːfæb ˈvɛriənt/",meaning:"预制体变体 — 基于另一个预制体创建的带有覆盖属性的版本",example:"Create a Prefab Variant for the elite enemy.",exampleCn:"为精英敌人创建一个预制体变体。",category:"核心概念"},
+
+  // ===== 编辑器 =====
+  {word:"Inspector",phonetic:"/ɪnˈspektər/",meaning:"检视面板 — 显示和编辑选中对象组件属性的窗口",example:"Adjust values directly in the Inspector panel.",exampleCn:"直接在检视面板中调整数值。",category:"编辑器"},
+  {word:"Hierarchy",phonetic:"/ˈhaɪərɑːrki/",meaning:"层级面板 — 以树形结构显示场景中所有GameObject",example:"Find your player object in the Hierarchy window.",exampleCn:"在层级面板中找到你的玩家对象。",category:"编辑器"},
+  {word:"Scene View",phonetic:"/siːn vjuː/",meaning:"场景视图 — 用于可视化编辑场景的交互式3D/2D视图",example:"Navigate the Scene View to position objects.",exampleCn:"在场景视图中导航以定位对象。",category:"编辑器"},
+  {word:"Game View",phonetic:"/ɡeɪm vjuː/",meaning:"游戏视图 — 模拟最终渲染效果的预览窗口",example:"Check the Game View to see the player's perspective.",exampleCn:"查看游戏视图以观察玩家的视角。",category:"编辑器"},
+  {word:"Project Window",phonetic:"/ˈprɒdʒekt ˈwɪndoʊ/",meaning:"项目窗口 — 浏览和管理项目中所有资源文件的面板",example:"Drag assets from the Project window into the scene.",exampleCn:"从项目窗口将资源拖入场景中。",category:"编辑器"},
+  {word:"Console",phonetic:"/kənˈsoʊl/",meaning:"控制台 — 显示日志、警告和错误信息的窗口",example:"Check the Console for Debug.Log messages.",exampleCn:"在控制台中查看Debug.Log消息。",category:"编辑器"},
+  {word:"Toolbar",phonetic:"/ˈtuːlbɑːr/",meaning:"工具栏 — 编辑器顶部的控制栏，包含播放/暂停等按钮",example:"Click Play in the Toolbar to test the game.",exampleCn:"点击工具栏中的播放按钮来测试游戏。",category:"编辑器"},
+  {word:"Gizmo",phonetic:"/ˈɡɪzmoʊ/",meaning:"辅助图标 — 场景视图中用于可视化调试的图形标记",example:"Draw a Gizmo sphere to visualize the detection range.",exampleCn:"绘制一个辅助球体来可视化检测范围。",category:"编辑器"},
+  {word:"Handle",phonetic:"/ˈhændl/",meaning:"操作手柄 — 场景视图中用于移动/旋转/缩放的交互控件",example:"Use the rotation handle to orient the light.",exampleCn:"使用旋转手柄来调整灯光方向。",category:"编辑器"},
+  {word:"Asset Store",phonetic:"/ˈæset stɔːr/",meaning:"资源商店 — Unity官方的资源和插件市场",example:"Download free assets from the Asset Store.",exampleCn:"从资源商店下载免费资源。",category:"编辑器"},
+
+  // ===== 脚本编程 =====
+  {word:"MonoBehaviour",phonetic:"/ˈmɒnoʊ bɪˈheɪvjər/",meaning:"MonoBehaviour — Unity脚本的基类，提供生命周期回调方法",example:"All Unity scripts inherit from MonoBehaviour.",exampleCn:"所有Unity脚本都继承自MonoBehaviour。",category:"脚本编程"},
+  {word:"Instantiate",phonetic:"/ɪnˈstænʃieɪt/",meaning:"实例化 — 在运行时克隆对象或预制体",example:"Instantiate(bulletPrefab, firePoint.position, rotation);",exampleCn:"实例化子弹预制体，在发射点位置和旋转处生成。",category:"脚本编程"},
+  {word:"Coroutine",phonetic:"/koʊˈruːtiːn/",meaning:"协程 — 可跨帧暂停和恢复执行的方法",example:"Use a coroutine to wait 2 seconds before respawn.",exampleCn:"使用协程等待2秒后重生。",category:"脚本编程"},
+  {word:"Invoke",phonetic:"/ɪnˈvoʊk/",meaning:"延迟调用 — 在指定秒数后调用方法",example:"Invoke(\"Explode\", 3f); // 3秒后爆炸",exampleCn:"延迟调用Explode方法，3秒后爆炸。",category:"脚本编程"},
+  {word:"Serialize",phonetic:"/ˈsɪriəlaɪz/",meaning:"序列化 — 将对象状态转换为可存储格式的过程",example:"[SerializeField] private int health = 100;",exampleCn:"使用序列化字段将私有变量暴露给编辑器。",category:"脚本编程"},
+  {word:"Awake",phonetic:"/əˈweɪk/",meaning:"Awake — 脚本实例加载时最先调用的初始化方法",example:"Initialize references in Awake before Start runs.",exampleCn:"在Start运行之前，在Awake中初始化引用。",category:"脚本编程"},
+  {word:"Start",phonetic:"/stɑːrt/",meaning:"Start — 在第一帧Update之前调用一次的初始化方法",example:"Set initial position in Start method.",exampleCn:"在Start方法中设置初始位置。",category:"脚本编程"},
+  {word:"Update",phonetic:"/ʌpˈdeɪt/",meaning:"Update — 每帧调用一次，用于处理输入和游戏逻辑",example:"Handle player input in the Update method.",exampleCn:"在Update方法中处理玩家输入。",category:"脚本编程"},
+  {word:"FixedUpdate",phonetic:"/fɪkst ʌpˈdeɪt/",meaning:"FixedUpdate — 按固定时间步长调用，用于物理计算",example:"Apply forces in FixedUpdate for consistent physics.",exampleCn:"在FixedUpdate中施加力以保持物理一致性。",category:"脚本编程"},
+  {word:"LateUpdate",phonetic:"/leɪt ʌpˈdeɪt/",meaning:"LateUpdate — 在所有Update之后调用，常用于相机跟随",example:"Move the camera in LateUpdate to follow the player.",exampleCn:"在LateUpdate中移动相机以跟随玩家。",category:"脚本编程"},
+  {word:"Delegate",phonetic:"/ˈdelɪɡət/",meaning:"委托 — 类型安全的函数引用，用于事件和回调系统",example:"public delegate void OnDamage(int amount);",exampleCn:"声明一个委托类型用于伤害事件回调。",category:"脚本编程"},
+  {word:"Event",phonetic:"/ɪˈvent/",meaning:"事件 — 基于委托的通知机制，实现松耦合通信",example:"public event Action<int> OnHealthChanged;",exampleCn:"声明一个生命值变化事件。",category:"脚本编程"},
+  {word:"Callback",phonetic:"/ˈkɔːlbæk/",meaning:"回调 — 作为参数传递并在特定时机执行的函数",example:"Register a callback for when the animation ends.",exampleCn:"注册一个动画结束时的回调函数。",category:"脚本编程"},
+  {word:"ScriptableObject",phonetic:"/ˈskrɪptəbl ˈɒbdʒɪkt/",meaning:"可编程对象 — 用于存储共享数据的资源容器，不依附于场景",example:"Create a ScriptableObject for weapon stats data.",exampleCn:"创建一个可编程对象来存储武器属性数据。",category:"脚本编程"},
+  {word:"Attribute",phonetic:"/ˈætrɪbjuːt/",meaning:"特性 — 用方括号标注的元数据，修改字段或类的编辑器行为",example:"[Header(\"Movement\")] public float speed = 5f;",exampleCn:"使用Header特性为编辑器中的字段添加标题。",category:"脚本编程"},
+
+  // ===== 物理系统 =====
+  {word:"Rigidbody",phonetic:"/ˈrɪdʒɪdbɒdi/",meaning:"刚体 — 使GameObject受物理引擎(重力、力、碰撞)控制的组件",example:"Add Rigidbody to make the crate fall with gravity.",exampleCn:"添加刚体使箱子受重力下落。",category:"物理系统"},
+  {word:"Collider",phonetic:"/kəˈlaɪdər/",meaning:"碰撞体 — 定义物理碰撞边界形状的组件",example:"Use a BoxCollider for the wall boundaries.",exampleCn:"使用盒碰撞体作为墙壁边界。",category:"物理系统"},
+  {word:"Box Collider",phonetic:"/bɒks kəˈlaɪdər/",meaning:"盒碰撞体 — 长方体形状的碰撞体",example:"Add a Box Collider to the crate object.",exampleCn:"为箱子对象添加盒碰撞体。",category:"物理系统"},
+  {word:"Sphere Collider",phonetic:"/sfɪr kəˈlaɪdər/",meaning:"球碰撞体 — 球形的碰撞体",example:"Use a Sphere Collider for the ball pickup.",exampleCn:"为球形拾取物使用球碰撞体。",category:"物理系统"},
+  {word:"Capsule Collider",phonetic:"/ˈkæpsjuːl kəˈlaɪdər/",meaning:"胶囊碰撞体 — 胶囊形状的碰撞体，常用于角色",example:"Character controllers often use a Capsule Collider.",exampleCn:"角色控制器通常使用胶囊碰撞体。",category:"物理系统"},
+  {word:"Mesh Collider",phonetic:"/meʃ kəˈlaɪdər/",meaning:"网格碰撞体 — 基于3D网格形状的精确碰撞体",example:"Use a Mesh Collider for complex terrain shapes.",exampleCn:"对复杂地形形状使用网格碰撞体。",category:"物理系统"},
+  {word:"Terrain Collider",phonetic:"/təˈreɪn kəˈlaɪdər/",meaning:"地形碰撞体 — 专用于地形对象的碰撞体",example:"The Terrain Collider matches the heightmap surface.",exampleCn:"地形碰撞体与高度图表面匹配。",category:"物理系统"},
+  {word:"Wheel Collider",phonetic:"/wiːl kəˈlaɪdər/",meaning:"车轮碰撞体 — 模拟车轮物理的专用碰撞体",example:"Attach Wheel Colliders for vehicle suspension.",exampleCn:"附加车轮碰撞体以实现车辆悬挂。",category:"物理系统"},
+  {word:"Trigger",phonetic:"/ˈtrɪɡər/",meaning:"触发器 — 设为isTrigger的碰撞体，检测进入但不产生物理碰撞",example:"OnTriggerEnter detects when player enters the zone.",exampleCn:"OnTriggerEnter检测玩家何时进入区域。",category:"物理系统"},
+  {word:"Raycast",phonetic:"/ˈreɪkæst/",meaning:"射线检测 — 从一点沿方向发射不可见射线检测碰撞",example:"Physics.Raycast to detect what the player is looking at.",exampleCn:"使用Physics.Raycast检测玩家正在看的东西。",category:"物理系统"},
+  {word:"Kinematic",phonetic:"/ˌkɪnəˈmætɪk/",meaning:"运动学 — 不受物理力影响，仅通过Transform或动画移动",example:"Set isKinematic = true for script-controlled movement.",exampleCn:"设置isKinematic为true以实现脚本控制的移动。",category:"物理系统"},
+  {word:"Velocity",phonetic:"/vəˈlɒsɪti/",meaning:"速度 — 刚体的线性运动速度向量",example:"rb.velocity = new Vector3(0, jumpForce, 0);",exampleCn:"设置刚体速度向量实现跳跃。",category:"物理系统"},
+  {word:"Friction",phonetic:"/ˈfrɪkʃən/",meaning:"摩擦力 — 物理材质中控制表面滑动阻力的属性",example:"Reduce friction on ice surfaces for sliding effect.",exampleCn:"降低冰面摩擦力以实现滑动效果。",category:"物理系统"},
+  {word:"Physics Material",phonetic:"/ˈfɪzɪks məˈtɪriəl/",meaning:"物理材质 — 定义碰撞体摩擦力和弹性的资源",example:"Assign a bouncy Physics Material to the ball.",exampleCn:"为球分配一个弹性物理材质。",category:"物理系统"},
+  {word:"Hinge Joint",phonetic:"/hɪndʒ dʒɔɪnt/",meaning:"铰链关节 — 模拟门铰链式旋转连接的物理组件",example:"Use a Hinge Joint for the swinging door.",exampleCn:"为摆动门使用铰链关节。",category:"物理系统"},
+  {word:"Fixed Joint",phonetic:"/fɪkst dʒɔɪnt/",meaning:"固定关节 — 将两个刚体锁定在一起的约束",example:"Fixed Joint keeps the shield attached to the arm.",exampleCn:"固定关节使盾牌附着在手臂上。",category:"物理系统"},
+  {word:"Spring Joint",phonetic:"/sprɪŋ dʒɔɪnt/",meaning:"弹簧关节 — 用弹簧力连接两个刚体的约束",example:"Use a Spring Joint for the grappling hook rope.",exampleCn:"为抓钩绳索使用弹簧关节。",category:"物理系统"},
+  {word:"Character Joint",phonetic:"/ˈkærɪktər dʒɔɪnt/",meaning:"角色关节 — 模拟骨骼关节的物理约束，用于布娃娃系统",example:"Set up Character Joints for ragdoll physics.",exampleCn:"设置角色关节以实现布娃娃物理效果。",category:"物理系统"},
+  {word:"Configurable Joint",phonetic:"/kənˈfɪɡjərəbl dʒɔɪnt/",meaning:"可配置关节 — 高度自定义的物理关节，可限制各轴运动",example:"Use Configurable Joint for custom constraints.",exampleCn:"使用可配置关节实现自定义约束。",category:"物理系统"},
+  {word:"Constant Force",phonetic:"/ˈkɒnstənt fɔːrs/",meaning:"恒力 — 持续对刚体施加力或扭矩的组件",example:"Add Constant Force for a rocket thrust effect.",exampleCn:"添加恒力组件实现火箭推力效果。",category:"物理系统"},
+  {word:"Cloth",phonetic:"/klɒθ/",meaning:"布料 — 模拟织物物理行为的组件",example:"Add Cloth component for the cape simulation.",exampleCn:"添加布料组件模拟披风效果。",category:"物理系统"},
+  {word:"Collision Detection",phonetic:"/kəˈlɪʒən dɪˈtekʃən/",meaning:"碰撞检测 — 检测物体间物理接触的系统(离散/连续/动态连续)",example:"Set Continuous collision detection for fast bullets.",exampleCn:"为高速子弹设置连续碰撞检测。",category:"物理系统"},
+
+  // ===== 渲染与图形 =====
+  {word:"Shader",phonetic:"/ˈʃeɪdər/",meaning:"着色器 — 在GPU上运行的程序，控制顶点和像素的渲染方式",example:"Write a custom shader for the water effect.",exampleCn:"编写自定义着色器实现水面效果。",category:"渲染图形"},
+  {word:"ShaderLab",phonetic:"/ˈʃeɪdər læb/",meaning:"ShaderLab — Unity专用的着色器声明语言",example:"ShaderLab wraps HLSL code with Unity-specific syntax.",exampleCn:"ShaderLab用Unity特定语法包装HLSL代码。",category:"渲染图形"},
+  {word:"Material",phonetic:"/məˈtɪriəl/",meaning:"材质 — 结合着色器和纹理参数定义物体表面外观的资源",example:"Assign a new material to change the object's color.",exampleCn:"分配新材质来改变对象的颜色。",category:"渲染图形"},
+  {word:"Texture",phonetic:"/ˈtekstʃər/",meaning:"纹理 — 映射到3D模型表面的2D位图图像",example:"Apply the brick texture to the wall material.",exampleCn:"将砖块纹理应用到墙壁材质上。",category:"渲染图形"},
+  {word:"Mesh",phonetic:"/meʃ/",meaning:"网格 — 由顶点、边和三角面构成的3D几何数据",example:"The MeshFilter holds the object's mesh data.",exampleCn:"MeshFilter持有对象的网格数据。",category:"渲染图形"},
+  {word:"Mesh Filter",phonetic:"/meʃ ˈfɪltər/",meaning:"网格过滤器 — 持有网格数据引用的组件",example:"Mesh Filter stores which mesh to render.",exampleCn:"网格过滤器存储要渲染的网格。",category:"渲染图形"},
+  {word:"Mesh Renderer",phonetic:"/meʃ ˈrendərər/",meaning:"网格渲染器 — 使用材质将网格绘制到屏幕的组件",example:"Disable Mesh Renderer to make the object invisible.",exampleCn:"禁用网格渲染器使对象不可见。",category:"渲染图形"},
+  {word:"Skinned Mesh Renderer",phonetic:"/skɪnd meʃ ˈrendərər/",meaning:"蒙皮网格渲染器 — 支持骨骼动画变形的网格渲染组件",example:"Characters use Skinned Mesh Renderer for animation.",exampleCn:"角色使用蒙皮网格渲染器来播放动画。",category:"渲染图形"},
+  {word:"Sprite",phonetic:"/spraɪt/",meaning:"精灵 — 2D游戏中使用的图像对象",example:"Create a sprite animation for the character walk cycle.",exampleCn:"为角色行走循环创建精灵动画。",category:"渲染图形"},
+  {word:"Sprite Atlas",phonetic:"/spraɪt ˈætləs/",meaning:"精灵图集 — 将多个精灵合并到一张纹理以优化渲染",example:"Pack UI sprites into a Sprite Atlas to reduce draw calls.",exampleCn:"将UI精灵打包到精灵图集以减少绘制调用。",category:"渲染图形"},
+  {word:"Render Pipeline",phonetic:"/ˈrendər ˈpaɪplaɪn/",meaning:"渲染管线 — 定义场景如何被渲染的完整流程(内置/URP/HDRP)",example:"Switch to URP for better mobile performance.",exampleCn:"切换到URP以获得更好的移动端性能。",category:"渲染图形"},
+  {word:"URP",phonetic:"/juː ɑːr piː/",meaning:"通用渲染管线 (Universal Render Pipeline) — 适用于多平台的可编程渲染管线",example:"URP provides good performance across all platforms.",exampleCn:"URP在所有平台上提供良好的性能。",category:"渲染图形"},
+  {word:"HDRP",phonetic:"/eɪtʃ diː ɑːr piː/",meaning:"高清渲染管线 (High Definition Render Pipeline) — 面向高端平台的渲染管线",example:"Use HDRP for photorealistic console/PC graphics.",exampleCn:"使用HDRP实现主机/PC上的照片级真实图形。",category:"渲染图形"},
+  {word:"Render Texture",phonetic:"/ˈrendər ˈtekstʃər/",meaning:"渲染纹理 — 将摄像机渲染结果存储为纹理的特殊纹理类型",example:"Use Render Texture for the minimap camera.",exampleCn:"为小地图摄像机使用渲染纹理。",category:"渲染图形"},
+  {word:"Lightmap",phonetic:"/ˈlaɪtmæp/",meaning:"光照贴图 — 预烘焙的静态光照数据纹理",example:"Bake lightmaps for better performance on mobile.",exampleCn:"烘焙光照贴图以提升移动端性能。",category:"渲染图形"},
+  {word:"Light Probe",phonetic:"/laɪt proʊb/",meaning:"光照探针 — 在空间中采样光照信息供动态物体使用",example:"Place Light Probes for dynamic objects to receive baked light.",exampleCn:"放置光照探针使动态物体接收烘焙光照。",category:"渲染图形"},
+  {word:"Reflection Probe",phonetic:"/rɪˈflekʃən proʊb/",meaning:"反射探针 — 捕获周围环境的立方体贴图用于反射效果",example:"Add Reflection Probes for realistic metal reflections.",exampleCn:"添加反射探针实现逼真的金属反射。",category:"渲染图形"},
+  {word:"Skybox",phonetic:"/ˈskaɪbɒks/",meaning:"天空盒 — 包围整个场景的六面或全景背景贴图",example:"Change the skybox material for a sunset look.",exampleCn:"更换天空盒材质以呈现日落效果。",category:"渲染图形"},
+  {word:"Cubemap",phonetic:"/ˈkjuːbmæp/",meaning:"立方体贴图 — 由六张图像组成的环境贴图，用于反射和天空盒",example:"Generate a Cubemap for the environment reflections.",exampleCn:"生成立方体贴图用于环境反射。",category:"渲染图形"},
+  {word:"Particle System",phonetic:"/ˈpɑːrtɪkl ˈsɪstəm/",meaning:"粒子系统 — 生成和管理大量小型图像/网格以模拟特效的系统",example:"Use a Particle System for the explosion effect.",exampleCn:"使用粒子系统实现爆炸效果。",category:"渲染图形"},
+  {word:"LOD",phonetic:"/ˌel oʊ ˈdiː/",meaning:"细节层次 (Level of Detail) — 根据摄像机距离切换模型精度",example:"Set up LOD groups for distant terrain objects.",exampleCn:"为远处地形对象设置LOD组。",category:"渲染图形"},
+  {word:"Occlusion Culling",phonetic:"/əˈkluːʒən ˈkʌlɪŋ/",meaning:"遮挡剔除 — 不渲染被其他物体完全遮挡的对象",example:"Enable Occlusion Culling to improve frame rate.",exampleCn:"启用遮挡剔除以提高帧率。",category:"渲染图形"},
+  {word:"Bloom",phonetic:"/bluːm/",meaning:"泛光 — 使明亮区域产生光晕扩散效果的后处理",example:"Add Bloom post-processing for glowing lights.",exampleCn:"添加泛光后处理使灯光产生光晕。",category:"渲染图形"},
+  {word:"Post-processing",phonetic:"/poʊst ˈprɒsesɪŋ/",meaning:"后处理 — 在渲染完成后对图像应用的视觉效果(泛光、色调映射等)",example:"Add post-processing for cinematic color grading.",exampleCn:"添加后处理实现电影级色彩调整。",category:"渲染图形"},
+  {word:"HDR",phonetic:"/eɪtʃ diː ɑːr/",meaning:"高动态范围 (High Dynamic Range) — 支持超过标准亮度范围的渲染模式",example:"Enable HDR on the camera for better bloom effects.",exampleCn:"在摄像机上启用HDR以获得更好的泛光效果。",category:"渲染图形"},
+  {word:"Antialiasing",phonetic:"/ˌæntiˈeɪliəsɪŋ/",meaning:"抗锯齿 — 平滑图像边缘锯齿的渲染技术",example:"Enable MSAA antialiasing for smoother edges.",exampleCn:"启用MSAA抗锯齿使边缘更平滑。",category:"渲染图形"},
+  {word:"Blit",phonetic:"/blɪt/",meaning:"位块传输 — 将像素数据从一个纹理复制到另一个纹理的操作",example:"Graphics.Blit copies the source to the destination.",exampleCn:"Graphics.Blit将源纹理复制到目标纹理。",category:"渲染图形"},
+  {word:"Rasterization",phonetic:"/ˌræstəraɪˈzeɪʃən/",meaning:"光栅化 — 将矢量图形(三角形)转换为像素的过程",example:"The GPU rasterizes triangles into screen pixels.",exampleCn:"GPU将三角形光栅化为屏幕像素。",category:"渲染图形"},
+  {word:"Ray Tracing",phonetic:"/reɪ ˈtreɪsɪŋ/",meaning:"光线追踪 — 模拟光线物理传播路径的高级渲染技术",example:"HDRP supports hardware ray tracing for reflections.",exampleCn:"HDRP支持硬件光线追踪实现反射效果。",category:"渲染图形"},
+  {word:"Billboard",phonetic:"/ˈbɪlbɔːrd/",meaning:"公告板 — 始终面向摄像机的2D平面，常用于远处树木和粒子",example:"Use billboard rendering for distant tree sprites.",exampleCn:"对远处树木精灵使用公告板渲染。",category:"渲染图形"},
+  {word:"Normal Map",phonetic:"/ˈnɔːrml mæp/",meaning:"法线贴图 — 用RGB编码表面法线方向以模拟凹凸细节的纹理",example:"Apply a normal map to add surface detail without geometry.",exampleCn:"应用法线贴图在不增加几何体的情况下添加表面细节。",category:"渲染图形"},
+  {word:"Bump Map",phonetic:"/bʌmp mæp/",meaning:"凹凸贴图 — 用灰度值模拟表面高低起伏的纹理",example:"Use a bump map for the stone wall texture.",exampleCn:"为石墙纹理使用凹凸贴图。",category:"渲染图形"},
+  {word:"Heightmap",phonetic:"/ˈhaɪtmæp/",meaning:"高度图 — 用灰度值表示地形高度的纹理",example:"Import a heightmap to generate the terrain shape.",exampleCn:"导入高度图来生成地形形状。",category:"渲染图形"},
+  {word:"Albedo",phonetic:"/ælˈbiːdoʊ/",meaning:"反照率 — 材质的基础颜色/纹理，不含光照信息",example:"Set the albedo texture for the character's skin.",exampleCn:"设置角色皮肤的反照率纹理。",category:"渲染图形"},
+  {word:"Ambient Light",phonetic:"/ˈæmbiənt laɪt/",meaning:"环境光 — 均匀照亮场景所有表面的全局基础光照",example:"Adjust ambient light intensity in Lighting Settings.",exampleCn:"在光照设置中调整环境光强度。",category:"渲染图形"},
+  {word:"Directional Light",phonetic:"/dɪˈrekʃənl laɪt/",meaning:"平行光 — 模拟太阳等远距离光源的平行光线",example:"Use a Directional Light as the main sun light.",exampleCn:"使用平行光作为主太阳光。",category:"渲染图形"},
+  {word:"Point Light",phonetic:"/pɔɪnt laɪt/",meaning:"点光源 — 从一个点向所有方向均匀发射光线的光源",example:"Add a Point Light inside the lantern object.",exampleCn:"在灯笼对象内添加点光源。",category:"渲染图形"},
+  {word:"Spot Light",phonetic:"/spɒt laɪt/",meaning:"聚光灯 — 从一点沿锥形方向发射光线的光源",example:"Use a Spot Light for the flashlight effect.",exampleCn:"使用聚光灯实现手电筒效果。",category:"渲染图形"},
+  {word:"Area Light",phonetic:"/ˈɛriə laɪt/",meaning:"面光源 — 从矩形或圆盘表面发射光线的光源(仅烘焙)",example:"Use Area Lights for soft window lighting.",exampleCn:"使用面光源实现柔和的窗户照明。",category:"渲染图形"},
+
+  // ===== 动画 =====
+  {word:"Animator",phonetic:"/ˈænɪmeɪtər/",meaning:"动画器 — 管理动画状态机、过渡和混合的组件",example:"Set up the Animator with idle, walk, and run states.",exampleCn:"设置动画器包含待机、行走和奔跑状态。",category:"动画"},
+  {word:"Animator Controller",phonetic:"/ˈænɪmeɪtər kənˈtroʊlər/",meaning:"动画控制器 — 定义动画状态机逻辑的资源文件",example:"Create an Animator Controller for the player character.",exampleCn:"为玩家角色创建动画控制器。",category:"动画"},
+  {word:"Animation Clip",phonetic:"/ˌænɪˈmeɪʃən klɪp/",meaning:"动画剪辑 — 存储关键帧动画数据的资源",example:"Create an animation clip for the door opening.",exampleCn:"为开门动作创建动画剪辑。",category:"动画"},
+  {word:"Animation Curves",phonetic:"/ˌænɪˈmeɪʃən kɜːrvz/",meaning:"动画曲线 — 定义属性随时间变化的曲线图",example:"Edit Animation Curves for custom easing.",exampleCn:"编辑动画曲线实现自定义缓动效果。",category:"动画"},
+  {word:"Animation Event",phonetic:"/ˌænɪˈmeɪʃən ɪˈvent/",meaning:"动画事件 — 在动画特定帧触发脚本方法的标记",example:"Add an Animation Event to play footstep sound.",exampleCn:"添加动画事件来播放脚步声。",category:"动画"},
+  {word:"Blend Tree",phonetic:"/blend triː/",meaning:"混合树 — 根据参数值平滑混合多个动画的节点",example:"Use a Blend Tree to mix walk and run animations.",exampleCn:"使用混合树混合行走和奔跑动画。",category:"动画"},
+  {word:"Keyframe",phonetic:"/ˈkiːfreɪm/",meaning:"关键帧 — 动画时间线上定义属性值的控制点",example:"Add keyframes at 0s and 1s for the fade animation.",exampleCn:"在0秒和1秒处添加关键帧实现淡入淡出。",category:"动画"},
+  {word:"Transition",phonetic:"/trænˈzɪʃən/",meaning:"过渡 — 动画状态之间的切换规则和混合设置",example:"Set transition condition: speed > 0.1 to walk.",exampleCn:"设置过渡条件：速度大于0.1时切换到行走。",category:"动画"},
+  {word:"Animation State Machine",phonetic:"/ˌænɪˈmeɪʃən steɪt məˈʃiːn/",meaning:"动画状态机 — 管理动画状态和过渡逻辑的图形化系统",example:"Design the animation state machine in the Animator window.",exampleCn:"在动画器窗口中设计动画状态机。",category:"动画"},
+  {word:"Animation Layer",phonetic:"/ˌænɪˈmeɪʃən ˈleɪər/",meaning:"动画层 — 允许同时播放多组动画的分层系统",example:"Use an upper body layer for shooting while running.",exampleCn:"使用上半身动画层实现边跑边射击。",category:"动画"},
+  {word:"Animation Parameters",phonetic:"/ˌænɪˈmeɪʃən pəˈræmɪtərz/",meaning:"动画参数 — 控制状态机过渡条件的变量(Float/Int/Bool/Trigger)",example:"Set the 'isRunning' bool parameter to trigger run.",exampleCn:"设置isRunning布尔参数来触发奔跑动画。",category:"动画"},
+  {word:"Avatar",phonetic:"/ˈævətɑːr/",meaning:"化身 — 定义人形骨骼映射关系的资源，用于动画重定向",example:"Configure the Avatar for humanoid animation retargeting.",exampleCn:"配置化身以实现人形动画重定向。",category:"动画"},
+  {word:"Retargeting",phonetic:"/riːˈtɑːrɡɪtɪŋ/",meaning:"动画重定向 — 将一个骨骼的动画应用到不同骨骼结构的技术",example:"Retarget mocap animations to your custom character.",exampleCn:"将动作捕捉动画重定向到自定义角色。",category:"动画"},
+  {word:"Root Motion",phonetic:"/ruːt ˈmoʊʃən/",meaning:"根运动 — 由动画数据驱动角色位移而非脚本控制",example:"Enable Root Motion for animation-driven movement.",exampleCn:"启用根运动实现动画驱动的移动。",category:"动画"},
+  {word:"Inverse Kinematics",phonetic:"/ɪnˈvɜːrs kɪnəˈmætɪks/",meaning:"反向动力学 (IK) — 根据末端位置反算关节角度的技术",example:"Use IK to make the character's feet match the terrain.",exampleCn:"使用IK使角色的脚与地形匹配。",category:"动画"},
+  {word:"Tween",phonetic:"/twiːn/",meaning:"补间 — 在两个值之间按时间平滑插值的动画技术",example:"DOTween.To(() => alpha, x => alpha = x, 1f, 0.5f);",exampleCn:"使用DOTween在0.5秒内将透明度补间到1。",category:"动画"},
+  {word:"Rigging",phonetic:"/ˈrɪɡɪŋ/",meaning:"绑定/骨骼绑定 — 为3D模型创建骨骼结构以驱动动画",example:"Rig the character model before importing to Unity.",exampleCn:"在导入Unity之前为角色模型绑定骨骼。",category:"动画"},
+
+  // ===== UI系统 =====
+  {word:"Canvas",phonetic:"/ˈkænvəs/",meaning:"画布 — UI元素的渲染根容器，定义渲染模式(屏幕/世界/摄像机)",example:"All UI elements must be children of a Canvas.",exampleCn:"所有UI元素必须是画布的子对象。",category:"UI系统"},
+  {word:"Event System",phonetic:"/ɪˈvent ˈsɪstəm/",meaning:"事件系统 — 处理UI输入事件(点击、拖拽等)的管理器",example:"The Event System handles button click detection.",exampleCn:"事件系统处理按钮点击检测。",category:"UI系统"},
+  {word:"Anchor",phonetic:"/ˈæŋkər/",meaning:"锚点 — UI元素相对于父容器的定位参考点",example:"Set anchors to stretch for responsive layout.",exampleCn:"设置锚点为拉伸以实现响应式布局。",category:"UI系统"},
+  {word:"Viewport",phonetic:"/ˈvjuːpɔːrt/",meaning:"视口 — 可见的渲染区域或ScrollRect的可视窗口",example:"Adjust the viewport rect for split-screen mode.",exampleCn:"调整视口矩形以实现分屏模式。",category:"UI系统"},
+  {word:"ScrollView",phonetic:"/skroʊl vjuː/",meaning:"滚动视图 — 支持滚动浏览超出可视区域内容的UI组件",example:"Use a ScrollView for the inventory item list.",exampleCn:"为物品栏列表使用滚动视图。",category:"UI系统"},
+  {word:"Toggle",phonetic:"/ˈtɒɡl/",meaning:"开关 — 可切换开/关状态的UI复选框组件",example:"Add a Toggle for the sound on/off setting.",exampleCn:"为声音开关设置添加一个开关组件。",category:"UI系统"},
+  {word:"Layout Group",phonetic:"/ˈleɪaʊt ɡruːp/",meaning:"布局组 — 自动排列子元素的组件(水平/垂直/网格)",example:"Use VerticalLayoutGroup to stack menu items.",exampleCn:"使用垂直布局组来堆叠菜单项。",category:"UI系统"},
+  {word:"Rect Transform",phonetic:"/rekt trænsˈfɔːrm/",meaning:"矩形变换 — UI元素专用的Transform，支持锚点和尺寸控制",example:"Modify RectTransform to position the health bar.",exampleCn:"修改矩形变换来定位生命值条。",category:"UI系统"},
+  {word:"Graphic Raycaster",phonetic:"/ˈɡræfɪk ˈreɪkæstər/",meaning:"图形射线投射器 — 检测UI元素上鼠标/触摸事件的组件",example:"Canvas needs a Graphic Raycaster for click detection.",exampleCn:"画布需要图形射线投射器来检测点击。",category:"UI系统"},
+
+  // ===== 音频 =====
+  {word:"Audio Source",phonetic:"/ˈɔːdioʊ sɔːrs/",meaning:"音频源 — 在场景中播放音频剪辑的组件",example:"Attach an Audio Source to play footstep sounds.",exampleCn:"附加音频源来播放脚步声。",category:"音频"},
+  {word:"Audio Clip",phonetic:"/ˈɔːdioʊ klɪp/",meaning:"音频剪辑 — 包含声音数据的音频资源文件",example:"Load the Audio Clip and assign it to the source.",exampleCn:"加载音频剪辑并分配给音频源。",category:"音频"},
+  {word:"Audio Listener",phonetic:"/ˈɔːdioʊ ˈlɪsənər/",meaning:"音频监听器 — 接收3D声音的组件，相当于虚拟麦克风(通常在主摄像机上)",example:"Only one Audio Listener should be active in a scene.",exampleCn:"场景中应只有一个活跃的音频监听器。",category:"音频"},
+  {word:"Audio Filter",phonetic:"/ˈɔːdioʊ ˈfɪltər/",meaning:"音频滤波器 — 对音频信号应用效果(低通、高通、回声等)的组件",example:"Add a Low Pass Audio Filter for underwater sound.",exampleCn:"添加低通音频滤波器实现水下音效。",category:"音频"},
+  {word:"Audio Spatializer",phonetic:"/ˈɔːdioʊ ˈspeɪʃəlaɪzər/",meaning:"音频空间化器 — 处理3D空间音频定位效果的插件",example:"Enable the Audio Spatializer for VR positional audio.",exampleCn:"启用音频空间化器实现VR位置音频。",category:"音频"},
+  {word:"Audio Mixer",phonetic:"/ˈɔːdioʊ ˈmɪksər/",meaning:"音频混合器 — 管理多个音频通道的音量、效果和路由",example:"Use Audio Mixer groups for music, SFX, and voice.",exampleCn:"使用音频混合器分组管理音乐、音效和语音。",category:"音频"},
+
+  // ===== 摄像机 =====
+  {word:"Camera",phonetic:"/ˈkæmərə/",meaning:"摄像机 — 捕获和显示场景内容的组件，定义玩家视角",example:"Set the main camera to follow the player.",exampleCn:"设置主摄像机跟随玩家。",category:"摄像机"},
+  {word:"Frustum",phonetic:"/ˈfrʌstəm/",meaning:"视锥体 — 摄像机可见区域的截锥形空间",example:"Objects outside the frustum are culled automatically.",exampleCn:"视锥体外的对象会被自动剔除。",category:"摄像机"},
+  {word:"Clipping Plane",phonetic:"/ˈklɪpɪŋ pleɪn/",meaning:"裁剪面 — 摄像机的近/远裁剪距离，超出范围不渲染",example:"Increase the far clipping plane to see distant objects.",exampleCn:"增大远裁剪面以看到远处的对象。",category:"摄像机"},
+  {word:"Field of View",phonetic:"/fiːld əv vjuː/",meaning:"视野角 (FOV) — 摄像机可见的垂直角度范围",example:"Set FOV to 60 for a standard perspective view.",exampleCn:"将FOV设为60以获得标准透视视角。",category:"摄像机"},
+  {word:"Depth Buffer",phonetic:"/depθ ˈbʌfər/",meaning:"深度缓冲 — 存储每个像素到摄像机距离的缓冲区，用于遮挡判断",example:"The depth buffer determines which objects are in front.",exampleCn:"深度缓冲决定哪些对象在前面。",category:"摄像机"},
+  {word:"Stencil Buffer",phonetic:"/ˈstensɪl ˈbʌfər/",meaning:"模板缓冲 — 用于遮罩和特殊渲染效果的逐像素缓冲区",example:"Use the stencil buffer for portal rendering effects.",exampleCn:"使用模板缓冲实现传送门渲染效果。",category:"摄像机"},
+  {word:"Orthographic",phonetic:"/ˌɔːrθəˈɡræfɪk/",meaning:"正交投影 — 无透视缩放的平行投影模式，常用于2D游戏",example:"Set camera to Orthographic for a 2D side-scroller.",exampleCn:"将摄像机设为正交投影用于2D横版游戏。",category:"摄像机"},
+  {word:"Perspective",phonetic:"/pərˈspektɪv/",meaning:"透视投影 — 模拟人眼近大远小效果的投影模式",example:"Use Perspective projection for 3D games.",exampleCn:"3D游戏使用透视投影。",category:"摄像机"},
+
+  // ===== 地形与环境 =====
+  {word:"Terrain",phonetic:"/təˈreɪn/",meaning:"地形 — Unity内置的大规模地形编辑和渲染系统",example:"Paint trees and grass on the Terrain surface.",exampleCn:"在地形表面绘制树木和草地。",category:"地形环境"},
+  {word:"Tilemap",phonetic:"/ˈtaɪlmæp/",meaning:"瓦片地图 — 用瓦片网格构建2D关卡的系统",example:"Design the level layout using the Tilemap editor.",exampleCn:"使用瓦片地图编辑器设计关卡布局。",category:"地形环境"},
+  {word:"Fog",phonetic:"/fɒɡ/",meaning:"雾 — 根据距离混合雾色以模拟大气效果的渲染特性",example:"Enable fog in Lighting Settings for atmosphere.",exampleCn:"在光照设置中启用雾效以营造氛围。",category:"地形环境"},
+  {word:"Wind Zone",phonetic:"/wɪnd zoʊn/",meaning:"风区 — 影响地形树木和粒子的风力模拟组件",example:"Add a Wind Zone to make the trees sway.",exampleCn:"添加风区使树木摇摆。",category:"地形环境"},
+  {word:"Tree",phonetic:"/triː/",meaning:"树 — 地形系统中可批量放置的植被对象",example:"Paint trees on the terrain with the brush tool.",exampleCn:"使用画笔工具在地形上绘制树木。",category:"地形环境"},
+
+  // ===== 性能优化 =====
+  {word:"Profiler",phonetic:"/ˈproʊfaɪlər/",meaning:"性能分析器 — 实时监测CPU/GPU/内存/渲染等性能指标的工具",example:"Open the Profiler to find the performance bottleneck.",exampleCn:"打开性能分析器找到性能瓶颈。",category:"性能优化"},
+  {word:"Static Batching",phonetic:"/ˈstætɪk ˈbætʃɪŋ/",meaning:"静态批处理 — 将不移动的物体合并为一次绘制调用",example:"Mark non-moving objects as Static for batching.",exampleCn:"将不移动的对象标记为静态以进行批处理。",category:"性能优化"},
+  {word:"Dynamic Batching",phonetic:"/daɪˈnæmɪk ˈbætʃɪŋ/",meaning:"动态批处理 — 运行时自动合并小型动态物体的绘制调用",example:"Dynamic batching works for small meshes automatically.",exampleCn:"动态批处理自动对小型网格生效。",category:"性能优化"},
+  {word:"Draw Call",phonetic:"/drɔː kɔːl/",meaning:"绘制调用 — CPU向GPU发送的一次渲染指令",example:"Reduce draw calls by using texture atlases.",exampleCn:"通过使用纹理图集减少绘制调用。",category:"性能优化"},
+  {word:"Culling",phonetic:"/ˈkʌlɪŋ/",meaning:"剔除 — 跳过不可见对象渲染的优化技术(视锥/遮挡/背面)",example:"Frustum culling skips objects outside camera view.",exampleCn:"视锥剔除跳过摄像机视野外的对象。",category:"性能优化"},
+  {word:"Garbage Collection",phonetic:"/ˈɡɑːrbɪdʒ kəˈlekʃən/",meaning:"垃圾回收 (GC) — 自动回收不再引用的托管内存",example:"Avoid allocations in Update to reduce GC spikes.",exampleCn:"避免在Update中分配内存以减少GC峰值。",category:"性能优化"},
+  {word:"Frame",phonetic:"/freɪm/",meaning:"帧 — 渲染管线输出的一张完整画面",example:"The game runs at 60 frames per second.",exampleCn:"游戏以每秒60帧运行。",category:"性能优化"},
+  {word:"FPS",phonetic:"/ˌef piː ˈes/",meaning:"帧率 (Frames Per Second) — 每秒渲染的画面数量",example:"Monitor FPS to ensure smooth gameplay.",exampleCn:"监控帧率以确保流畅的游戏体验。",category:"性能优化"},
+  {word:"Compression",phonetic:"/kəmˈpreʃən/",meaning:"压缩 — 减小纹理/音频/网格等资源文件大小的技术",example:"Use texture compression to reduce build size.",exampleCn:"使用纹理压缩来减小构建包大小。",category:"性能优化"},
+  {word:"Texture Atlas",phonetic:"/ˈtekstʃər ˈætləs/",meaning:"纹理图集 — 将多张小纹理合并到一张大纹理以减少绘制调用",example:"Combine UI textures into a texture atlas.",exampleCn:"将UI纹理合并到纹理图集中。",category:"性能优化"},
+  {word:"GPU Instancing",phonetic:"/dʒiː piː juː ˈɪnstənsɪŋ/",meaning:"GPU实例化 — 用一次绘制调用渲染多个相同网格的技术",example:"Enable GPU Instancing on the material for grass.",exampleCn:"在草地材质上启用GPU实例化。",category:"性能优化"},
+  {word:"Async Loading",phonetic:"/eɪˈsɪŋk ˈloʊdɪŋ/",meaning:"异步加载 — 在后台线程加载资源以避免卡顿",example:"Use SceneManager.LoadSceneAsync for smooth transitions.",exampleCn:"使用异步加载场景实现平滑过渡。",category:"性能优化"},
+
+  // ===== 平台与构建 =====
+  {word:"Build",phonetic:"/bɪld/",meaning:"构建 — 将项目编译打包为可执行程序的过程",example:"Build the project for Windows standalone platform.",exampleCn:"为Windows独立平台构建项目。",category:"平台构建"},
+  {word:"Development Build",phonetic:"/dɪˈveləpmənt bɪld/",meaning:"开发构建 — 包含调试符号和Profiler连接的构建版本",example:"Enable Development Build to use the Profiler remotely.",exampleCn:"启用开发构建以远程使用性能分析器。",category:"平台构建"},
+  {word:"APK",phonetic:"/ˌeɪ piː ˈkeɪ/",meaning:"Android应用包 — Android平台的安装包格式",example:"Build an APK for testing on Android devices.",exampleCn:"构建APK在Android设备上测试。",category:"平台构建"},
+  {word:"IL2CPP",phonetic:"/ˌaɪ el tuː siː piː piː/",meaning:"IL2CPP — 将C# IL代码转换为C++再编译为原生代码的脚本后端",example:"Use IL2CPP for better performance on mobile.",exampleCn:"使用IL2CPP在移动端获得更好的性能。",category:"平台构建"},
+  {word:"Mono",phonetic:"/ˈmɒnoʊ/",meaning:"Mono — 基于Mono运行时的脚本后端，编译速度快",example:"Use Mono backend for faster iteration during development.",exampleCn:"开发期间使用Mono后端加快迭代速度。",category:"平台构建"},
+  {word:"WebGL",phonetic:"/web dʒiː el/",meaning:"WebGL — 在浏览器中运行Unity游戏的构建目标平台",example:"Build for WebGL to publish the game on the web.",exampleCn:"构建WebGL版本将游戏发布到网页上。",category:"平台构建"},
+  {word:"AOT Compilation",phonetic:"/ˌeɪ oʊ ˈtiː ˌkɒmpɪˈleɪʃən/",meaning:"预编译 (Ahead-of-Time) — 在构建时将代码编译为原生机器码",example:"IL2CPP uses AOT compilation for iOS builds.",exampleCn:"IL2CPP使用预编译来构建iOS版本。",category:"平台构建"},
+  {word:"Asset Bundle",phonetic:"/ˈæset ˈbʌndl/",meaning:"资源包 — 可在运行时动态加载的打包资源集合",example:"Download Asset Bundles for DLC content.",exampleCn:"下载资源包用于DLC内容。",category:"平台构建"},
+  {word:"Addressables",phonetic:"/əˈdresəblz/",meaning:"可寻址资源 — 通过地址字符串异步加载和管理资源的系统",example:"Use Addressables for efficient asset management.",exampleCn:"使用可寻址资源实现高效的资源管理。",category:"平台构建"},
+  {word:"Platform",phonetic:"/ˈplætfɔːrm/",meaning:"平台 — 游戏运行的目标设备/操作系统(PC/移动/主机/Web)",example:"Switch the build platform to Android in Build Settings.",exampleCn:"在构建设置中切换构建平台为Android。",category:"平台构建"},
+
+  // ===== 数学 =====
+  {word:"Vector2",phonetic:"/ˈvektər tuː/",meaning:"二维向量 — 表示2D空间中位置或方向的结构(x, y)",example:"Vector2.right is shorthand for (1, 0).",exampleCn:"Vector2.right是(1, 0)的简写。",category:"数学"},
+  {word:"Vector3",phonetic:"/ˈvektər θriː/",meaning:"三维向量 — 表示3D空间中位置、方向或速度的结构(x, y, z)",example:"Vector3.forward is shorthand for (0, 0, 1).",exampleCn:"Vector3.forward是(0, 0, 1)的简写。",category:"数学"},
+  {word:"Vector4",phonetic:"/ˈvektər fɔːr/",meaning:"四维向量 — 表示齐次坐标或颜色的结构(x, y, z, w)",example:"Vector4 is used for shader parameters.",exampleCn:"Vector4用于着色器参数。",category:"数学"},
+  {word:"Quaternion",phonetic:"/kwəˈtɜːrniən/",meaning:"四元数 — 表示3D旋转的数学结构，避免万向锁问题",example:"Use Quaternion.Euler(0, 90, 0) to rotate 90 degrees.",exampleCn:"使用Quaternion.Euler(0, 90, 0)旋转90度。",category:"数学"},
+  {word:"Lerp",phonetic:"/lɜːrp/",meaning:"线性插值 (Linear Interpolation) — 在两个值之间按t比例取值",example:"transform.position = Vector3.Lerp(a, b, t);",exampleCn:"使用线性插值在两个位置之间平滑移动。",category:"数学"},
+  {word:"Slerp",phonetic:"/slɜːrp/",meaning:"球面线性插值 — 沿球面弧线在两个旋转之间平滑插值",example:"Use Quaternion.Slerp for smooth rotation transitions.",exampleCn:"使用球面插值实现平滑的旋转过渡。",category:"数学"},
+  {word:"Interpolation",phonetic:"/ɪnˌtɜːrpəˈleɪʃən/",meaning:"插值 — 根据已知数据点估算中间值的数学方法",example:"Use interpolation for smooth camera movement.",exampleCn:"使用插值实现平滑的相机移动。",category:"数学"},
+  {word:"Extrapolation",phonetic:"/ɪkˌstræpəˈleɪʃən/",meaning:"外推 — 根据已知趋势预测范围外数据的方法",example:"Extrapolation predicts future positions in networking.",exampleCn:"外推在网络中预测未来位置。",category:"数学"},
+  {word:"Clamp",phonetic:"/klæmp/",meaning:"钳制 — 将值限制在[min, max]范围内",example:"health = Mathf.Clamp(health, 0, maxHealth);",exampleCn:"将生命值钳制在0到最大值之间。",category:"数学"},
+  {word:"Normalize",phonetic:"/ˈnɔːrməlaɪz/",meaning:"归一化 — 将向量缩放为长度为1的单位向量",example:"Normalize the direction vector for consistent speed.",exampleCn:"归一化方向向量以保持一致的速度。",category:"数学"},
+  {word:"Delta Time",phonetic:"/ˈdeltə taɪm/",meaning:"增量时间 — 上一帧到当前帧经过的秒数",example:"Move speed * Time.deltaTime for frame-rate independence.",exampleCn:"速度乘以增量时间实现帧率无关的移动。",category:"数学"},
+  {word:"Dot Product",phonetic:"/dɒt ˈprɒdʌkt/",meaning:"点积 — 两个向量的标量积，用于计算夹角和方向关系",example:"Use Vector3.Dot to check if enemy is in front.",exampleCn:"使用点积检查敌人是否在前方。",category:"数学"},
+  {word:"Cross Product",phonetic:"/krɒs ˈprɒdʌkt/",meaning:"叉积 — 两个向量的向量积，结果垂直于两个输入向量",example:"Vector3.Cross gives the perpendicular direction.",exampleCn:"叉积给出垂直方向。",category:"数学"},
+  {word:"Matrix",phonetic:"/ˈmeɪtrɪks/",meaning:"矩阵 — 用于变换(平移/旋转/缩放)计算的数学结构",example:"The MVP matrix transforms vertices to screen space.",exampleCn:"MVP矩阵将顶点变换到屏幕空间。",category:"数学"},
+
+  // ===== 导航与AI =====
+  {word:"NavMesh",phonetic:"/næv meʃ/",meaning:"导航网格 — 定义AI可行走区域的烘焙数据",example:"Bake a NavMesh for the level's walkable surfaces.",exampleCn:"为关卡的可行走表面烘焙导航网格。",category:"AI导航"},
+  {word:"NavMesh Agent",phonetic:"/næv meʃ ˈeɪdʒənt/",meaning:"导航代理 — 在NavMesh上自动寻路移动的组件",example:"NavMeshAgent.SetDestination(target.position);",exampleCn:"设置导航代理的目标位置进行自动寻路。",category:"AI导航"},
+  {word:"NavMesh Obstacle",phonetic:"/næv meʃ ˈɒbstəkl/",meaning:"导航障碍物 — 动态阻挡NavMesh代理路径的组件",example:"Add NavMesh Obstacle to the moving platform.",exampleCn:"为移动平台添加导航障碍物。",category:"AI导航"},
+  {word:"Off-Mesh Link",phonetic:"/ɒf meʃ lɪŋk/",meaning:"离网链接 — 连接不相邻NavMesh区域的跳跃/传送路径",example:"Create Off-Mesh Links for jump-across gaps.",exampleCn:"创建离网链接用于跨越间隙。",category:"AI导航"},
+  {word:"Waypoint",phonetic:"/ˈweɪpɔɪnt/",meaning:"路径点 — AI巡逻或移动路线上的目标位置",example:"Set waypoints for the guard patrol route.",exampleCn:"为守卫巡逻路线设置路径点。",category:"AI导航"},
+
+  // ===== XR (扩展现实) =====
+  {word:"VR",phonetic:"/viː ɑːr/",meaning:"虚拟现实 (Virtual Reality) — 完全沉浸式的计算机生成环境",example:"Build a VR experience for Oculus Quest.",exampleCn:"为Oculus Quest构建VR体验。",category:"XR"},
+  {word:"AR",phonetic:"/eɪ ɑːr/",meaning:"增强现实 (Augmented Reality) — 在真实世界上叠加虚拟内容",example:"Use AR Foundation for cross-platform AR apps.",exampleCn:"使用AR Foundation开发跨平台AR应用。",category:"XR"},
+  {word:"MR",phonetic:"/em ɑːr/",meaning:"混合现实 (Mixed Reality) — 虚拟与现实深度融合交互的技术",example:"MR allows virtual objects to interact with real surfaces.",exampleCn:"MR允许虚拟对象与真实表面交互。",category:"XR"},
+  {word:"XR",phonetic:"/eks ɑːr/",meaning:"扩展现实 (Extended Reality) — VR/AR/MR的统称",example:"Unity's XR Interaction Toolkit supports all XR platforms.",exampleCn:"Unity的XR交互工具包支持所有XR平台。",category:"XR"},
+  {word:"Tracking",phonetic:"/ˈtrækɪŋ/",meaning:"追踪 — 检测和跟踪设备/手柄/身体位置和方向的技术",example:"6DOF tracking captures position and rotation.",exampleCn:"六自由度追踪捕获位置和旋转。",category:"XR"},
+
+  // ===== 设计模式 =====
+  {word:"Singleton",phonetic:"/ˈsɪŋɡltən/",meaning:"单例模式 — 确保类在全局只有一个实例的设计模式",example:"GameManager uses Singleton to persist across scenes.",exampleCn:"GameManager使用单例模式在场景间持久化。",category:"设计模式"},
+  {word:"Observer",phonetic:"/əbˈzɜːrvər/",meaning:"观察者模式 — 当对象状态变化时自动通知所有订阅者",example:"Use Observer pattern for the event system.",exampleCn:"为事件系统使用观察者模式。",category:"设计模式"},
+  {word:"State Machine",phonetic:"/steɪt məˈʃiːn/",meaning:"状态机 — 管理对象在有限状态间切换的行为模式",example:"Enemy AI uses a state machine: patrol, chase, attack.",exampleCn:"敌人AI使用状态机：巡逻、追击、攻击。",category:"设计模式"},
+  {word:"Object Pool",phonetic:"/ˈɒbdʒɪkt puːl/",meaning:"对象池 — 预创建并循环复用对象以避免频繁分配内存",example:"Use an object pool for bullets to reduce GC.",exampleCn:"为子弹使用对象池以减少垃圾回收。",category:"设计模式"},
+  {word:"Command Pattern",phonetic:"/kəˈmænd ˈpætərn/",meaning:"命令模式 — 将操作封装为对象，支持撤销/重做",example:"Implement undo system with the Command pattern.",exampleCn:"使用命令模式实现撤销系统。",category:"设计模式"},
+  {word:"Factory",phonetic:"/ˈfæktəri/",meaning:"工厂模式 — 通过工厂方法创建对象而非直接实例化",example:"Use a Factory to create different enemy types.",exampleCn:"使用工厂模式创建不同类型的敌人。",category:"设计模式"},
+  {word:"Component Pattern",phonetic:"/kəmˈpoʊnənt ˈpætərn/",meaning:"组件模式 — Unity的核心架构，通过组合组件定义行为",example:"Unity's architecture is based on the Component pattern.",exampleCn:"Unity的架构基于组件模式。",category:"设计模式"},
+
+  // ===== 网络与多人 =====
+  {word:"Multiplayer",phonetic:"/ˈmʌltiˌpleɪər/",meaning:"多人游戏 — 多个玩家通过网络同时参与的游戏模式",example:"Set up multiplayer using Unity Netcode.",exampleCn:"使用Unity Netcode设置多人游戏。",category:"网络"},
+  {word:"Server",phonetic:"/ˈsɜːrvər/",meaning:"服务器 — 管理游戏状态和协调客户端通信的主机",example:"The server authorizes all player actions.",exampleCn:"服务器授权所有玩家操作。",category:"网络"},
+  {word:"Client",phonetic:"/ˈklaɪənt/",meaning:"客户端 — 连接到服务器的玩家端程序",example:"The client sends input to the server for validation.",exampleCn:"客户端将输入发送到服务器进行验证。",category:"网络"},
+  {word:"RPC",phonetic:"/ɑːr piː siː/",meaning:"远程过程调用 (Remote Procedure Call) — 跨网络调用其他端方法",example:"Use ServerRpc to send data from client to server.",exampleCn:"使用ServerRpc从客户端向服务器发送数据。",category:"网络"},
+  {word:"Latency",phonetic:"/ˈleɪtənsi/",meaning:"延迟 — 数据在网络中传输所需的时间",example:"Implement client-side prediction to hide latency.",exampleCn:"实现客户端预测来隐藏延迟。",category:"网络"},
+  {word:"Synchronization",phonetic:"/ˌsɪŋkrənaɪˈzeɪʃən/",meaning:"同步 — 保持所有客户端游戏状态一致的过程",example:"Sync player positions across all clients.",exampleCn:"在所有客户端间同步玩家位置。",category:"网络"},
+
+  // ===== 输入系统 =====
+  {word:"Input System",phonetic:"/ˈɪnpʊt ˈsɪstəm/",meaning:"输入系统 — Unity新版输入处理框架，支持多设备和动作映射",example:"Use the new Input System for cross-platform input.",exampleCn:"使用新输入系统实现跨平台输入。",category:"输入"},
+  {word:"Input Action",phonetic:"/ˈɪnpʊt ˈækʃən/",meaning:"输入动作 — 抽象的输入行为定义，与具体按键解耦",example:"Map the 'Jump' Input Action to spacebar and A button.",exampleCn:"将跳跃输入动作映射到空格键和A按钮。",category:"输入"},
+  {word:"Axis",phonetic:"/ˈæksɪs/",meaning:"轴 — 表示输入方向的-1到1连续值(如摇杆方向)",example:"float h = Input.GetAxis(\"Horizontal\");",exampleCn:"获取水平轴输入值。",category:"输入"},
+
+  // ===== 版本控制 =====
+  {word:"Version Control",phonetic:"/ˈvɜːrʒən kənˈtroʊl/",meaning:"版本控制 — 跟踪和管理文件变更历史的系统(Git等)",example:"Use Git for version control of your Unity project.",exampleCn:"使用Git对Unity项目进行版本控制。",category:"版本控制"},
+  {word:"Meta File",phonetic:"/ˈmetə faɪl/",meaning:".meta文件 — Unity为每个资源生成的元数据文件，包含导入设置和GUID",example:"Always commit .meta files to version control.",exampleCn:"始终将.meta文件提交到版本控制。",category:"版本控制"},
+  {word:"GUID",phonetic:"/ɡuːɪd/",meaning:"全局唯一标识符 — Unity用于追踪资源引用的唯一ID",example:"Unity uses GUIDs in .meta files to track asset references.",exampleCn:"Unity在.meta文件中使用GUID追踪资源引用。",category:"版本控制"},
+
+  // ===== 2D专用 =====
+  {word:"Sprite Renderer",phonetic:"/spraɪt ˈrendərər/",meaning:"精灵渲染器 — 在场景中显示2D精灵图像的组件",example:"Add a Sprite Renderer to display the character sprite.",exampleCn:"添加精灵渲染器来显示角色精灵。",category:"2D"},
+  {word:"Sorting Layer",phonetic:"/ˈsɔːrtɪŋ ˈleɪər/",meaning:"排序层 — 控制2D精灵渲染前后顺序的分层系统",example:"Put the background on a lower Sorting Layer.",exampleCn:"将背景放在较低的排序层。",category:"2D"},
+  {word:"Sorting Order",phonetic:"/ˈsɔːrtɪŋ ˈɔːrdər/",meaning:"排序顺序 — 同一排序层内精灵的渲染优先级数值",example:"Set higher sorting order for foreground objects.",exampleCn:"为前景对象设置更高的排序顺序。",category:"2D"},
+  {word:"Rigidbody 2D",phonetic:"/ˈrɪdʒɪdbɒdi tuː diː/",meaning:"2D刚体 — 2D物理系统中的刚体组件",example:"Add Rigidbody 2D for 2D platformer physics.",exampleCn:"为2D平台游戏添加2D刚体。",category:"2D"},
+  {word:"Sprite Shape",phonetic:"/spraɪt ʃeɪp/",meaning:"精灵形状 — 用样条曲线创建可变形2D图形的工具",example:"Use Sprite Shape for organic terrain edges.",exampleCn:"使用精灵形状创建有机地形边缘。",category:"2D"},
+  {word:"2D Effector",phonetic:"/tuː diː ɪˈfektər/",meaning:"2D效应器 — 对2D碰撞体施加特殊物理行为的组件(浮力/传送带等)",example:"Add a Surface Effector 2D for conveyor belt movement.",exampleCn:"添加2D表面效应器实现传送带移动。",category:"2D"},
+];
+
+// ===== Storage 数据持久化层 =====
+const Storage = {
+  STORAGE_KEY: 'unity-vocab-data',
+
+  load() {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (raw === null) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  save(data) {
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+  },
+
+  validate(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (!data.version || !data.settings || !data.plan || !data.progress) return false;
+    if (typeof data.settings.dailyNewWords !== 'number') return false;
+    if (data.settings.dailyNewWords < 5 || data.settings.dailyNewWords > 50) return false;
+    if (!Array.isArray(data.plan.groups)) return false;
+    return true;
+  },
+
+  reset() {
+    const today = new Date().toISOString().slice(0, 10);
+    const data = {
+      version: 1,
+      settings: { dailyNewWords: 20 },
+      plan: { startDate: today, currentGroupIndex: 0, groups: [] },
+      progress: {},
+      session: { date: today, mode: null, currentIndex: 0, stats: { forget: 0, fuzzy: 0, know: 0 }, reviewQueue: [] },
+      extractedWords: { cached: false, words: [] },
+      extractedPlan: { currentGroupIndex: 0, groups: [] }
+    };
+    this.save(data);
+    return data;
+  }
+};
+
+// ===== PlanEngine 每日计划引擎 =====
+const PlanEngine = {
+  generateGroups(wordPool, dailyCount) {
+    const groups = [];
+    for (let i = 0; i < wordPool.length; i += dailyCount) {
+      const chunk = wordPool.slice(i, i + dailyCount);
+      groups.push({ words: chunk.map(w => w.word) });
+    }
+    return groups;
+  },
+
+  getTodayWords(appData) {
+    const groups = appData.plan.groups;
+    let idx = appData.plan.currentGroupIndex;
+
+    while (idx < groups.length) {
+      const group = groups[idx];
+      const remaining = group.words.filter(key => !(key in appData.progress));
+      if (remaining.length > 0) {
+        appData.plan.currentGroupIndex = idx;
+        return remaining
+          .map(key => words.find(w => w.word === key))
+          .filter(Boolean);
+      }
+      idx++;
+    }
+
+    appData.plan.currentGroupIndex = idx;
+    return [];
+  },
+
+  completeDailySession(appData) {
+    appData.plan.currentGroupIndex += 1;
+    Storage.save(appData);
+  },
+
+  getCurrentDay(appData) {
+    const start = new Date(appData.plan.startDate);
+    const today = new Date();
+    start.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diff = today.getTime() - start.getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  },
+
+  setDailyCount(appData, count) {
+    if (typeof count !== 'number' || count < 5 || count > 50) {
+      return false;
+    }
+    appData.settings.dailyNewWords = count;
+
+    // Collect unlearned words (preserve learned progress)
+    const learnedKeys = new Set(Object.keys(appData.progress));
+    const unlearnedWords = words.filter(w => !learnedKeys.has(w.word));
+
+    // Regenerate groups for unlearned words only
+    appData.plan.groups = this.generateGroups(unlearnedWords, count);
+    appData.plan.currentGroupIndex = 0;
+
+    Storage.save(appData);
+    return true;
+  }
+};
+
+// ===== ReviewEngine 间隔复习引擎 =====
+const ReviewEngine = {
+  KNOWN_INTERVALS: [1, 3, 7, 15],
+
+  calcNextReview(masteryLevel, consecutiveKnown) {
+    if (masteryLevel === 'know') {
+      if (consecutiveKnown >= 4) {
+        return { interval: -1, mastered: true };
+      }
+      return { interval: this.KNOWN_INTERVALS[consecutiveKnown - 1] || 15, mastered: false };
+    }
+    if (masteryLevel === 'fuzzy') {
+      return { interval: 1, mastered: false };
+    }
+    // forget
+    return { interval: 0, mastered: false };
+  },
+
+  getDueWords(appData, today) {
+    const dueKeys = [];
+    const progress = appData.progress;
+    for (const key in progress) {
+      const record = progress[key];
+      if (record.mastered === true) continue;
+      if (record.nextReviewDate && record.nextReviewDate <= today) {
+        dueKeys.push(key);
+      }
+    }
+    return dueKeys
+      .map(key => words.find(w => w.word === key))
+      .filter(Boolean);
+  },
+
+  updateReview(appData, wordKey, masteryLevel) {
+    if (!appData.progress[wordKey]) {
+      appData.progress[wordKey] = {
+        masteryLevel: masteryLevel,
+        learnedDate: new Date().toISOString().slice(0, 10),
+        lastReviewDate: null,
+        nextReviewDate: null,
+        consecutiveKnown: 0,
+        mastered: false,
+        history: []
+      };
+    }
+
+    const record = appData.progress[wordKey];
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (masteryLevel === 'know') {
+      record.consecutiveKnown = (record.consecutiveKnown || 0) + 1;
+    } else {
+      record.consecutiveKnown = 0;
+    }
+
+    record.masteryLevel = masteryLevel;
+
+    const result = this.calcNextReview(masteryLevel, record.consecutiveKnown);
+
+    if (result.mastered) {
+      record.mastered = true;
+      record.nextReviewDate = null;
+    } else {
+      record.mastered = false;
+      const nextDate = new Date(today);
+      nextDate.setDate(nextDate.getDate() + result.interval);
+      record.nextReviewDate = nextDate.toISOString().slice(0, 10);
+    }
+
+    record.lastReviewDate = today;
+
+    if (!record.history) {
+      record.history = [];
+    }
+    record.history.push({ date: today, level: masteryLevel });
+
+    Storage.save(appData);
+  },
+
+  isMastered(wordRecord) {
+    return (wordRecord.consecutiveKnown >= 4) || (wordRecord.mastered === true);
+  }
+};
+
+// ===== Extractor 例句单词提取器 =====
+const Extractor = {
+  STOP_WORDS: new Set([
+    'a', 'the', 'is', 'to', 'for', 'in', 'on', 'of', 'and', 'or', 'it', 'this', 'that',
+    'with', 'from', 'at', 'by', 'an', 'as', 'be', 'are', 'was', 'were', 'has', 'have',
+    'had', 'do', 'does', 'did', 'not', 'no', 'but', 'if', 'so', 'up', 'out', 'all',
+    'can', 'will', 'may', 'use', 'new', 'set'
+  ]),
+
+  extractFromSentence(sentence, existingWords) {
+    if (!sentence || typeof sentence !== 'string') return [];
+    const tokens = sentence.match(/[a-zA-Z]+/g);
+    if (!tokens) return [];
+    const seen = new Set();
+    const result = [];
+    for (const token of tokens) {
+      const lower = token.toLowerCase();
+      if (lower.length < 2) continue;
+      if (this.STOP_WORDS.has(lower)) continue;
+      if (existingWords.has(lower)) continue;
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      result.push(lower);
+    }
+    return result;
+  },
+
+  extractAll(wordPool) {
+    if (!wordPool || !Array.isArray(wordPool)) return [];
+    const professionalWords = new Set();
+    for (const item of wordPool) {
+      if (item.word) {
+        const parts = item.word.match(/[a-zA-Z]+/g);
+        if (parts) {
+          for (const part of parts) {
+            professionalWords.add(part.toLowerCase());
+          }
+        }
+      }
+    }
+    const wordSourcesMap = new Map();
+    for (const item of wordPool) {
+      if (!item.example) continue;
+      const extracted = this.extractFromSentence(item.example, professionalWords);
+      for (const w of extracted) {
+        if (!wordSourcesMap.has(w)) {
+          wordSourcesMap.set(w, []);
+        }
+        wordSourcesMap.set(w, wordSourcesMap.get(w).concat(item.example));
+      }
+    }
+    const result = [];
+    for (const [word, sources] of wordSourcesMap) {
+      result.push({ word, sources });
+    }
+    result.sort((a, b) => a.word.localeCompare(b.word));
+    return result;
+  },
+
+  filter(rawWords, professionalWords) {
+    if (!rawWords || !Array.isArray(rawWords)) return [];
+    const seen = new Set();
+    const result = [];
+    for (const w of rawWords) {
+      const lower = typeof w === 'string' ? w.toLowerCase() : '';
+      if (!lower || lower.length < 2) continue;
+      if (this.STOP_WORDS.has(lower)) continue;
+      if (professionalWords && professionalWords.has(lower)) continue;
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      result.push(lower);
+    }
+    return result;
+  }
+};
+
+// ===== AppState 应用状态管理器 =====
+const AppState = {
+  currentView: 'dashboard',
+  data: null,
+  sessionState: {
+    deck: [],
+    currentIndex: 0,
+    revealed: false,
+    stats: { forget: 0, fuzzy: 0, know: 0 },
+    reviewQueue: [],
+    mode: null
+  },
+  _selectedWord: null,
+
+  init() {
+    let data = Storage.load();
+    if (data === null || !Storage.validate(data)) {
+      data = Storage.reset();
+      alert('学习数据已重置');
+    }
+    this.data = data;
+
+    // Generate plan groups if empty
+    if (!this.data.plan.groups || this.data.plan.groups.length === 0) {
+      this.data.plan.groups = PlanEngine.generateGroups(words, this.data.settings.dailyNewWords);
+      Storage.save(this.data);
+    }
+
+    // Extract words if not cached
+    if (!this.data.extractedWords.cached) {
+      const extracted = Extractor.extractAll(words);
+      this.data.extractedWords = { cached: true, words: extracted };
+      this.data.extractedPlan.groups = PlanEngine.generateGroups(
+        extracted.map(e => ({ word: e.word })),
+        this.data.settings.dailyNewWords
+      );
+      this.data.extractedPlan.currentGroupIndex = 0;
+      Storage.save(this.data);
+    }
+
+    this.currentView = 'dashboard';
+    renderDashboard();
+  },
+
+  switchView(targetView) {
+    // Save current session progress if in a learning/review mode
+    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn') {
+      this.saveSession();
+    }
+
+    this.currentView = targetView;
+
+    switch (targetView) {
+      case 'dashboard':
+        renderDashboard();
+        break;
+      case 'dailyLearn':
+        renderDailyLearn();
+        break;
+      case 'review':
+        renderReview();
+        break;
+      case 'library':
+        renderLibrary();
+        break;
+      case 'wordDetail':
+        renderWordDetail(this._selectedWord);
+        break;
+      case 'extractedLearn':
+        renderExtractedLearn();
+        break;
+      case 'settings':
+        renderSettings();
+        break;
+    }
+  },
+
+  getStats() {
+    const today = new Date().toISOString().slice(0, 10);
+    const daysLearned = PlanEngine.getCurrentDay(this.data);
+    const totalLearned = Object.keys(this.data.progress).length;
+    const dueReviewCount = ReviewEngine.getDueWords(this.data, today).length;
+
+    // Calculate today's progress within current group
+    const groups = this.data.plan.groups;
+    const idx = this.data.plan.currentGroupIndex;
+    let todayProgress = 0;
+    let todayTotal = 0;
+    if (idx < groups.length) {
+      const currentGroup = groups[idx];
+      todayTotal = currentGroup.words.length;
+      todayProgress = currentGroup.words.filter(key => key in this.data.progress).length;
+    }
+
+    const overallProgress = words.length > 0 ? Math.round(totalLearned / words.length * 100) : 0;
+    const allDone = totalLearned >= words.length;
+
+    return {
+      daysLearned,
+      totalLearned,
+      dueReviewCount,
+      todayProgress,
+      todayTotal,
+      overallProgress,
+      allDone
+    };
+  },
+
+  saveSession() {
+    this.data.session = {
+      date: new Date().toISOString().slice(0, 10),
+      mode: this.sessionState.mode,
+      currentIndex: this.sessionState.currentIndex,
+      stats: { ...this.sessionState.stats },
+      reviewQueue: this.sessionState.reviewQueue.map(w => typeof w === 'string' ? w : w.word)
+    };
+    Storage.save(this.data);
+  }
+};
+
+// ===== TTS 按钮生成辅助函数 =====
+function speakBtnHtml(text, id) {
+  if (!TTS.supported) return '';
+  return '<button class="speak-btn" id="' + id + '" onclick="event.stopPropagation();TTS.speak(\'' + text.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\', this)" title="朗读">🔊</button>';
+}
+
+// ===== renderDashboard 主导航界面 =====
+function renderDashboard() {
+  const stats = AppState.getStats();
+  const extractedCount = AppState.data.extractedWords.words ? AppState.data.extractedWords.words.length : 0;
+  const app = document.getElementById('app');
+
+  let navButtons = '';
+
+  // 继续学习按钮
+  if (stats.allDone) {
+    navButtons += `<button class="nav-btn nav-btn-learn" disabled>
+      <span>📖 继续学习<br><span class="nav-sub">所有新单词已学完</span></span>
+    </button>`;
+  } else {
+    navButtons += `<button class="nav-btn nav-btn-learn" onclick="AppState.switchView('dailyLearn')">
+      <span>📖 继续学习<br><span class="nav-sub">今日进度: ${stats.todayProgress}/${stats.todayTotal}</span></span>
+    </button>`;
+  }
+
+  // 开始复习按钮
+  if (stats.dueReviewCount === 0) {
+    navButtons += `<button class="nav-btn nav-btn-review" disabled>
+      <span>🔄 开始复习<br><span class="nav-sub">今日无需复习</span></span>
+    </button>`;
+  } else {
+    navButtons += `<button class="nav-btn nav-btn-review" onclick="AppState.switchView('review')">
+      <span>🔄 开始复习<br><span class="nav-sub">待复习: ${stats.dueReviewCount}个</span></span>
+    </button>`;
+  }
+
+  // 已学单词库按钮
+  navButtons += `<button class="nav-btn nav-btn-library" onclick="AppState.switchView('library')">
+    <span>📋 已学单词库<br><span class="nav-sub">已收录: ${stats.totalLearned}个</span></span>
+  </button>`;
+
+  // 例句词汇按钮（无提取词时隐藏）
+  if (extractedCount > 0) {
+    navButtons += `<button class="nav-btn nav-btn-extracted" onclick="AppState.switchView('extractedLearn')">
+      <span>💡 例句词汇<br><span class="nav-sub">已提取: ${extractedCount}个</span></span>
+    </button>`;
+  }
+
+  app.innerHTML = `
+    <button class="dashboard-settings" onclick="AppState.switchView('settings')" title="设置">⚙️</button>
+    <div class="dashboard-title">📚 Unity词汇学习</div>
+    <div class="dashboard-stats">
+      <span class="stat-item"><span class="stat-dot" style="background:#e94560"></span> 已学天数: ${stats.daysLearned}</span>
+      <span class="stat-item"><span class="stat-dot" style="background:#533483"></span> 已学: ${stats.totalLearned}/${words.length}</span>
+      <span class="stat-item"><span class="stat-dot" style="background:#66bb6a"></span> 进度: ${stats.overallProgress}%</span>
+      <span class="stat-item"><span class="stat-dot" style="background:#ffb74d"></span> 待复习: ${stats.dueReviewCount}</span>
+    </div>
+    <div class="dashboard-nav">
+      ${navButtons}
+    </div>
+  `;
+}
+
+// ===== renderDailyLearn 每日学习视图 =====
+function renderDailyLearn() {
+  const todayWords = PlanEngine.getTodayWords(AppState.data);
+  const app = document.getElementById('app');
+
+  if (todayWords.length === 0) {
+    app.innerHTML = `
+      <div class="complete">
+        <h2>🎉 所有新单词已学完</h2>
+        <p>你已经学完了所有新单词，继续复习巩固吧！</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回</button>
+      </div>
+    `;
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const session = AppState.data.session;
+
+  // Check if there's a saved session for today with the same mode
+  if (session && session.date === today && session.mode === 'dailyLearn') {
+    // Restore session
+    const shuffledDeck = todayWords.slice();
+    AppState.sessionState = {
+      deck: shuffledDeck,
+      currentIndex: Math.min(session.currentIndex || 0, shuffledDeck.length),
+      revealed: false,
+      stats: session.stats ? { ...session.stats } : { forget: 0, fuzzy: 0, know: 0 },
+      reviewQueue: (session.reviewQueue || []).map(key => words.find(w => w.word === key)).filter(Boolean),
+      mode: 'dailyLearn'
+    };
+  } else {
+    // New session
+    const shuffledDeck = todayWords.slice();
+    for (let i = shuffledDeck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledDeck[i], shuffledDeck[j]] = [shuffledDeck[j], shuffledDeck[i]];
+    }
+    AppState.sessionState = {
+      deck: shuffledDeck,
+      currentIndex: 0,
+      revealed: false,
+      stats: { forget: 0, fuzzy: 0, know: 0 },
+      reviewQueue: [],
+      mode: 'dailyLearn'
+    };
+  }
+
+  renderCurrentCard();
+}
+
+function renderCurrentCard() {
+  const ss = AppState.sessionState;
+  const app = document.getElementById('app');
+
+  if (ss.currentIndex >= ss.deck.length) {
+    if (ss.reviewQueue.length > 0) {
+      // Restart with review queue (shuffle it)
+      const rq = ss.reviewQueue.slice();
+      for (let i = rq.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rq[i], rq[j]] = [rq[j], rq[i]];
+      }
+      ss.deck = rq;
+      ss.reviewQueue = [];
+      ss.currentIndex = 0;
+      ss.revealed = false;
+      renderCurrentCard();
+      return;
+    }
+
+    // Completion screen
+    const total = ss.stats.forget + ss.stats.fuzzy + ss.stats.know;
+    const knowPct = total ? Math.round((ss.stats.know / total) * 100) : 0;
+    PlanEngine.completeDailySession(AppState.data);
+
+    app.innerHTML = `
+      <div class="complete">
+        <h2>🎉 今日学习完成</h2>
+        <p>共学习 ${total} 个单词</p>
+        <p>✅ 认识 ${ss.stats.know} &nbsp; 🤔 模糊 ${ss.stats.fuzzy} &nbsp; 😵 不认识 ${ss.stats.forget}</p>
+        <p>掌握率 ${knowPct}%</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回主页</button>
+      </div>
+    `;
+    return;
+  }
+
+  const w = ss.deck[ss.currentIndex];
+  const total = ss.deck.length;
+  const pct = Math.round((ss.currentIndex / total) * 100);
+  ss.revealed = false;
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="AppState.switchView('dashboard')">← 返回</button>
+    <div class="progress-bar">
+      <span>${ss.currentIndex + 1} / ${total}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>${pct}%</span>
+    </div>
+    <div class="category">${w.category}</div>
+    <div class="word">${w.word} ${speakBtnHtml(w.word, 'speak-word')}</div>
+    <div class="phonetic">${w.phonetic}</div>
+    <div class="meaning hidden" id="daily-meaning" onclick="dailyToggleReveal()">
+      ${w.meaning}
+      <span class="hint">点击或按空格显示释义</span>
+    </div>
+    <div class="example hidden" id="daily-example">${w.example} ${speakBtnHtml(w.example, 'speak-example')}</div>
+    <div class="example-cn hidden" id="daily-example-cn">${w.exampleCn || ''}</div>
+    <div class="btns">
+      <button class="btn btn-forget" onclick="dailyAnswer('forget')" title="快捷键: 1">😵 不认识</button>
+      <button class="btn btn-fuzzy" onclick="dailyAnswer('fuzzy')" title="快捷键: 2">🤔 模糊</button>
+      <button class="btn btn-know" onclick="dailyAnswer('know')" title="快捷键: 3">✅ 认识</button>
+    </div>
+    <div class="stats">
+      <span><span class="dot dot-forget"></span> 不认识 ${ss.stats.forget}</span>
+      <span><span class="dot dot-fuzzy"></span> 模糊 ${ss.stats.fuzzy}</span>
+      <span><span class="dot dot-know"></span> 认识 ${ss.stats.know}</span>
+    </div>
+    <div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>
+  `;
+}
+
+function dailyToggleReveal() {
+  AppState.sessionState.revealed = true;
+  const meaningEl = document.getElementById('daily-meaning');
+  const exampleEl = document.getElementById('daily-example');
+  const exampleCnEl = document.getElementById('daily-example-cn');
+  if (meaningEl) meaningEl.classList.remove('hidden');
+  if (exampleEl) exampleEl.classList.remove('hidden');
+  if (exampleCnEl) exampleCnEl.classList.remove('hidden');
+}
+
+function dailyAnswer(type) {
+  const ss = AppState.sessionState;
+  if (!ss.revealed) { dailyToggleReveal(); return; }
+
+  const w = ss.deck[ss.currentIndex];
+
+  // Update stats
+  ss.stats[type]++;
+
+  // Update progress record
+  const today = new Date().toISOString().slice(0, 10);
+  const masteryMap = { forget: 'forget', fuzzy: 'fuzzy', know: 'know' };
+  const masteryLevel = masteryMap[type];
+
+  if (!AppState.data.progress[w.word]) {
+    AppState.data.progress[w.word] = {
+      masteryLevel: masteryLevel,
+      learnedDate: today,
+      lastReviewDate: null,
+      nextReviewDate: null,
+      consecutiveKnown: 0,
+      mastered: false,
+      history: []
+    };
+  }
+
+  // Use ReviewEngine to update review schedule
+  ReviewEngine.updateReview(AppState.data, w.word, masteryLevel);
+
+  // Add to reviewQueue if forget or fuzzy
+  if (type === 'forget' || type === 'fuzzy') {
+    ss.reviewQueue.push(w);
+  }
+
+  // Increment currentIndex
+  ss.currentIndex++;
+
+  // Save session
+  AppState.saveSession();
+
+  // Render next card
+  renderCurrentCard();
+}
+
+function renderSettings() {
+  const app = document.getElementById('app');
+  const currentValue = AppState.data.settings.dailyNewWords;
+  app.innerHTML = `
+    <button class="back-btn" onclick="AppState.switchView('dashboard')">← 返回</button>
+    <div class="settings-title">⚙️ 设置</div>
+    <div class="settings-group">
+      <label>每日新单词数量</label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="number" id="dailyWordsInput" class="settings-input" value="${currentValue}" min="5" max="50">
+        <button class="settings-save-btn" onclick="saveSettings()">保存</button>
+      </div>
+    </div>
+    <button class="settings-danger-btn" onclick="resetProgress()">重置学习进度</button>
+  `;
+}
+
+function saveSettings() {
+  const input = document.getElementById('dailyWordsInput');
+  const value = parseInt(input.value, 10);
+  const result = PlanEngine.setDailyCount(AppState.data, value);
+  if (!result) {
+    alert('请输入5到50之间的数字');
+  } else {
+    alert('设置已保存');
+    renderSettings();
+  }
+}
+
+function resetProgress() {
+  if (confirm('确定要重置所有学习进度吗？此操作不可撤销。')) {
+    Storage.reset();
+    AppState.init();
+  }
+}
+
+// ===== renderReview 复习模式视图 =====
+function renderReview() {
+  const today = new Date().toISOString().slice(0, 10);
+  const dueWords = ReviewEngine.getDueWords(AppState.data, today);
+  const app = document.getElementById('app');
+
+  if (dueWords.length === 0) {
+    app.innerHTML = `
+      <div class="complete">
+        <h2>✅ 今日无需复习</h2>
+        <p>没有到期的复习单词，休息一下吧！</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Shuffle due words
+  const shuffled = dueWords.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  AppState.sessionState = {
+    deck: shuffled,
+    currentIndex: 0,
+    revealed: false,
+    stats: { forget: 0, fuzzy: 0, know: 0 },
+    reviewQueue: [],
+    mode: 'review'
+  };
+
+  renderReviewCard();
+}
+
+function renderReviewCard() {
+  const ss = AppState.sessionState;
+  const app = document.getElementById('app');
+
+  if (ss.currentIndex >= ss.deck.length) {
+    if (ss.reviewQueue.length > 0) {
+      const rq = ss.reviewQueue.slice();
+      for (let i = rq.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rq[i], rq[j]] = [rq[j], rq[i]];
+      }
+      ss.deck = rq;
+      ss.reviewQueue = [];
+      ss.currentIndex = 0;
+      ss.revealed = false;
+      renderReviewCard();
+      return;
+    }
+
+    const total = ss.stats.forget + ss.stats.fuzzy + ss.stats.know;
+    const knowPct = total ? Math.round((ss.stats.know / total) * 100) : 0;
+
+    app.innerHTML = `
+      <div class="complete">
+        <h2>🎉 复习完成</h2>
+        <p>共复习 ${total} 个单词</p>
+        <p>✅ 认识 ${ss.stats.know} &nbsp; 🤔 模糊 ${ss.stats.fuzzy} &nbsp; 😵 不认识 ${ss.stats.forget}</p>
+        <p>掌握率 ${knowPct}%</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回主页</button>
+      </div>
+    `;
+    return;
+  }
+
+  const w = ss.deck[ss.currentIndex];
+  const total = ss.deck.length;
+  const pct = Math.round((ss.currentIndex / total) * 100);
+  ss.revealed = false;
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="AppState.switchView('dashboard')">← 返回</button>
+    <div class="progress-bar">
+      <span>${ss.currentIndex + 1} / ${total}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>${pct}%</span>
+    </div>
+    <div class="category">${w.category}</div>
+    <div class="word">${w.word} ${speakBtnHtml(w.word, 'speak-word')}</div>
+    <div class="phonetic">${w.phonetic}</div>
+    <div class="meaning hidden" id="review-meaning" onclick="reviewToggleReveal()">
+      ${w.meaning}
+      <span class="hint">点击或按空格显示释义</span>
+    </div>
+    <div class="example hidden" id="review-example">${w.example} ${speakBtnHtml(w.example, 'speak-example')}</div>
+    <div class="example-cn hidden" id="review-example-cn">${w.exampleCn || ''}</div>
+    <div class="btns">
+      <button class="btn btn-forget" onclick="reviewAnswer('forget')" title="快捷键: 1">😵 不认识</button>
+      <button class="btn btn-fuzzy" onclick="reviewAnswer('fuzzy')" title="快捷键: 2">🤔 模糊</button>
+      <button class="btn btn-know" onclick="reviewAnswer('know')" title="快捷键: 3">✅ 认识</button>
+    </div>
+    <div class="stats">
+      <span><span class="dot dot-forget"></span> 不认识 ${ss.stats.forget}</span>
+      <span><span class="dot dot-fuzzy"></span> 模糊 ${ss.stats.fuzzy}</span>
+      <span><span class="dot dot-know"></span> 认识 ${ss.stats.know}</span>
+    </div>
+    <div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>
+  `;
+}
+
+function reviewToggleReveal() {
+  AppState.sessionState.revealed = true;
+  const meaningEl = document.getElementById('review-meaning');
+  const exampleEl = document.getElementById('review-example');
+  const exampleCnEl = document.getElementById('review-example-cn');
+  if (meaningEl) meaningEl.classList.remove('hidden');
+  if (exampleEl) exampleEl.classList.remove('hidden');
+  if (exampleCnEl) exampleCnEl.classList.remove('hidden');
+}
+
+function reviewAnswer(type) {
+  const ss = AppState.sessionState;
+  if (!ss.revealed) { reviewToggleReveal(); return; }
+
+  const w = ss.deck[ss.currentIndex];
+
+  // Update stats
+  ss.stats[type]++;
+
+  // Map type to mastery level
+  const masteryLevel = type;
+
+  // Update review record via ReviewEngine
+  ReviewEngine.updateReview(AppState.data, w.word, masteryLevel);
+
+  // Add to reviewQueue if forget or fuzzy
+  if (type === 'forget' || type === 'fuzzy') {
+    ss.reviewQueue.push(w);
+  }
+
+  // Increment currentIndex
+  ss.currentIndex++;
+
+  // Save session
+  AppState.saveSession();
+
+  // Render next card
+  renderReviewCard();
+}
+
+// ===== 已学单词库 =====
+let _libraryFilters = { category: '', level: '', search: '' };
+
+function filterLibraryWords() {
+  const progress = AppState.data.progress;
+  const keys = Object.keys(progress);
+  if (keys.length === 0) return [];
+
+  let list = keys.map(k => {
+    const w = words.find(w => w.word === k);
+    if (!w) return null;
+    return { ...w, progress: progress[k] };
+  }).filter(Boolean);
+
+  if (_libraryFilters.category) {
+    list = list.filter(w => w.category === _libraryFilters.category);
+  }
+  if (_libraryFilters.level) {
+    list = list.filter(w => w.progress.masteryLevel === _libraryFilters.level);
+  }
+  if (_libraryFilters.search) {
+    const q = _libraryFilters.search.toLowerCase();
+    list = list.filter(w => w.word.toLowerCase().includes(q) || w.meaning.toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function updateLibraryFilter(type, value) {
+  _libraryFilters[type] = value;
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const progress = AppState.data.progress;
+  const learnedKeys = Object.keys(progress);
+
+  if (learnedKeys.length === 0) {
+    app.innerHTML = '<button class="back-btn" onclick="AppState.switchView(\'dashboard\')">← 返回</button>' +
+      '<div class="dashboard-title">📋 已学单词库</div>' +
+      '<p style="text-align:center;color:#888;margin-top:40px;">还没有学过的单词</p>';
+    return;
+  }
+
+  // Collect unique categories from learned words
+  const categories = [...new Set(learnedKeys.map(k => {
+    const w = words.find(w => w.word === k);
+    return w ? w.category : null;
+  }).filter(Boolean))];
+
+  const filtered = filterLibraryWords();
+
+  const levelLabels = { '': '全部', forget: '不认识', fuzzy: '模糊', know: '认识' };
+  const masteryLabels = { forget: '不认识', fuzzy: '模糊', know: '认识' };
+
+  let html = '<button class="back-btn" onclick="AppState.switchView(\'dashboard\')">← 返回</button>';
+  html += '<div class="dashboard-title">📋 已学单词库</div>';
+
+  // Search input
+  html += '<input class="library-search" type="text" placeholder="搜索单词或释义..." value="' +
+    (_libraryFilters.search || '').replace(/"/g, '&quot;') +
+    '" oninput="updateLibraryFilter(\'search\', this.value)">';
+
+  // Category filter dropdown
+  html += '<div class="library-filters">';
+  html += '<select class="library-search" style="width:auto;margin-bottom:0;flex-shrink:0;" onchange="updateLibraryFilter(\'category\', this.value)">';
+  html += '<option value=""' + (_libraryFilters.category === '' ? ' selected' : '') + '>全部分类</option>';
+  categories.forEach(c => {
+    html += '<option value="' + c + '"' + (_libraryFilters.category === c ? ' selected' : '') + '>' + c + '</option>';
+  });
+  html += '</select>';
+
+  // Mastery level filter buttons
+  ['', 'forget', 'fuzzy', 'know'].forEach(lv => {
+    const active = _libraryFilters.level === lv ? ' active' : '';
+    html += '<button class="library-filter-btn' + active + '" onclick="updateLibraryFilter(\'level\', \'' + lv + '\')">' + levelLabels[lv] + '</button>';
+  });
+  html += '</div>';
+
+  // Word list
+  if (filtered.length === 0) {
+    html += '<p style="text-align:center;color:#888;margin-top:30px;">没有匹配的单词</p>';
+  } else {
+    html += '<div class="library-list">';
+    filtered.forEach(w => {
+      const badge = masteryLabels[w.progress.masteryLevel] || '未知';
+      const badgeClass = w.progress.masteryLevel || 'know';
+      html += '<div class="library-item" onclick="AppState._selectedWord=words.find(x=>x.word===\'' + w.word.replace(/'/g, "\\'") + '\');AppState.switchView(\'wordDetail\')">';
+      html += '<div><span class="library-item-word">' + w.word + '<small>' + (w.phonetic || '') + '</small></span></div>';
+      html += '<span class="library-item-meaning">' + w.meaning + '</span>';
+      html += '<span class="mastery-badge ' + badgeClass + '">' + badge + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  app.innerHTML = html;
+}
+
+function renderWordDetail(word) {
+  if (!word) { AppState.switchView('library'); return; }
+  const progress = AppState.data.progress[word.word];
+  const masteryLabels = { forget: '不认识', fuzzy: '模糊', know: '认识' };
+  const masteryColors = { forget: 'forget', fuzzy: 'fuzzy', know: 'know' };
+
+  let html = '<button class="back-btn" onclick="AppState.switchView(\'library\')">← 返回</button>';
+  html += '<span class="category">' + (word.category || '') + '</span>';
+  html += '<div class="word">' + word.word + ' ' + speakBtnHtml(word.word, 'speak-word-detail') + '</div>';
+  html += '<div class="phonetic">' + (word.phonetic || '') + '</div>';
+  html += '<div class="meaning">' + word.meaning + '</div>';
+  html += '<div class="example">' + (word.example || '') + ' ' + speakBtnHtml(word.example || '', 'speak-example-detail') + '</div>';
+  if (word.exampleCn) html += '<div class="example-cn">' + word.exampleCn + '</div>';
+
+  html += '<div class="word-detail-section">';
+  html += '<div class="dashboard-title" style="font-size:18px;margin-bottom:12px;">📖 学习历史</div>';
+
+  if (progress) {
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+    html += '<div><span class="word-detail-label">首次学习日期</span><div class="word-detail-value">' + (progress.learnedDate || '未知') + '</div></div>';
+    html += '<div><span class="word-detail-label">最近复习日期</span><div class="word-detail-value">' + (progress.lastReviewDate || '未知') + '</div></div>';
+
+    var lvl = progress.masteryLevel || 'know';
+    html += '<div><span class="word-detail-label">当前掌握等级</span><div class="word-detail-value"><span class="mastery-badge ' + masteryColors[lvl] + '">' + (masteryLabels[lvl] || lvl) + '</span></div></div>';
+
+    html += '<div><span class="word-detail-label">连续认识次数</span><div class="word-detail-value">' + (progress.consecutiveKnown || 0) + '</div></div>';
+    html += '<div><span class="word-detail-label">是否已掌握</span><div class="word-detail-value">' + (progress.mastered ? '✅ 已掌握' : '❌ 未掌握') + '</div></div>';
+
+    html += '</div>';
+
+    if (progress.history && progress.history.length > 0) {
+      html += '<div style="margin-top:14px;"><span class="word-detail-label">学习时间线</span></div>';
+      html += '<div class="history-timeline" style="margin-top:8px;">';
+      progress.history.forEach(function(h) {
+        var hLvl = h.level || 'know';
+        html += '<div class="history-item"><span>' + h.date + '</span><span class="mastery-badge ' + masteryColors[hLvl] + '">' + (masteryLabels[hLvl] || hLvl) + '</span></div>';
+      });
+      html += '</div>';
+    }
+  } else {
+    html += '<p style="text-align:center;color:#888;">尚未学习此单词</p>';
+  }
+
+  html += '</div>';
+  app.innerHTML = html;
+}
+
+// ===== 例句词汇学习模式 =====
+function renderExtractedLearn() {
+  const app = document.getElementById('app');
+  const extractedWords = AppState.data.extractedWords.words;
+  const extractedPlan = AppState.data.extractedPlan;
+
+  if (!extractedWords || extractedWords.length === 0 || extractedPlan.currentGroupIndex >= extractedPlan.groups.length) {
+    app.innerHTML = `
+      <div class="complete">
+        <h2>📚 没有更多例句词汇</h2>
+        <p>所有例句词汇已学完或暂无可学内容</p>
+        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回</button>
+      </div>
+    `;
+    return;
+  }
+
+  const currentGroup = extractedPlan.groups[extractedPlan.currentGroupIndex];
+  const groupWordKeys = currentGroup.words;
+
+  // Filter out already learned extracted words
+  const unlearnedKeys = groupWordKeys.filter(function(key) {
+    return !(key in AppState.data.progress);
+  });
+
+  if (unlearnedKeys.length === 0) {
+    // All words in this group are learned, advance to next group
+    extractedPlan.currentGroupIndex++;
+    Storage.save(AppState.data);
+    renderExtractedLearn();
+    return;
+  }
+
+  // Build word-like objects for display
+  const extractedMap = {};
+  extractedWords.forEach(function(ew) { extractedMap[ew.word] = ew; });
+
+  const deck = unlearnedKeys.map(function(key) {
+    const ew = extractedMap[key];
+    return {
+      word: key,
+      phonetic: '',
+      meaning: ew ? ew.sources.join(' | ') : '来自例句的常用词汇',
+      example: '来自例句的常用词汇',
+      category: '例句词汇'
+    };
+  });
+
+  // Shuffle deck
+  for (var i = deck.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = deck[i]; deck[i] = deck[j]; deck[j] = temp;
+  }
+
+  AppState.sessionState = {
+    deck: deck,
+    currentIndex: 0,
+    revealed: false,
+    stats: { forget: 0, fuzzy: 0, know: 0 },
+    reviewQueue: [],
+    mode: 'extractedLearn'
+  };
+
+  renderExtractedCard();
+}
+
+function renderExtractedCard() {
+  var ss = AppState.sessionState;
+  var app = document.getElementById('app');
+
+  if (ss.currentIndex >= ss.deck.length) {
+    if (ss.reviewQueue.length > 0) {
+      var rq = ss.reviewQueue.slice();
+      for (var i = rq.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = rq[i]; rq[i] = rq[j]; rq[j] = temp;
+      }
+      ss.deck = rq;
+      ss.reviewQueue = [];
+      ss.currentIndex = 0;
+      ss.revealed = false;
+      renderExtractedCard();
+      return;
+    }
+
+    // Completion: advance extractedPlan.currentGroupIndex
+    var total = ss.stats.forget + ss.stats.fuzzy + ss.stats.know;
+    var knowPct = total ? Math.round((ss.stats.know / total) * 100) : 0;
+    AppState.data.extractedPlan.currentGroupIndex++;
+    Storage.save(AppState.data);
+
+    app.innerHTML = '<div class="complete">' +
+      '<h2>🎉 例句词汇学习完成</h2>' +
+      '<p>共学习 ' + total + ' 个单词</p>' +
+      '<p>✅ 认识 ' + ss.stats.know + ' &nbsp; 🤔 模糊 ' + ss.stats.fuzzy + ' &nbsp; 😵 不认识 ' + ss.stats.forget + '</p>' +
+      '<p>掌握率 ' + knowPct + '%</p>' +
+      '<button class="restart" onclick="AppState.switchView(\'dashboard\')">← 返回主页</button>' +
+      '</div>';
+    return;
+  }
+
+  var w = ss.deck[ss.currentIndex];
+  var deckTotal = ss.deck.length;
+  var pct = Math.round((ss.currentIndex / deckTotal) * 100);
+  ss.revealed = false;
+
+  app.innerHTML = '<button class="back-btn" onclick="AppState.switchView(\'dashboard\')">← 返回</button>' +
+    '<div class="progress-bar">' +
+      '<span>' + (ss.currentIndex + 1) + ' / ' + deckTotal + '</span>' +
+      '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+      '<span>' + pct + '%</span>' +
+    '</div>' +
+    '<div class="category">例句词汇</div>' +
+    '<div class="word">' + w.word + ' ' + speakBtnHtml(w.word, 'speak-word') + '</div>' +
+    '<div class="phonetic">' + (w.phonetic || '') + '</div>' +
+    '<div class="meaning hidden" id="extracted-meaning" onclick="extractedToggleReveal()">' +
+      w.meaning +
+      '<span class="hint">点击或按空格显示来源例句</span>' +
+    '</div>' +
+    '<div class="example hidden" id="extracted-example">' + w.example + '</div>' +
+    '<div class="btns">' +
+      '<button class="btn btn-forget" onclick="extractedAnswer(\'forget\')" title="快捷键: 1">😵 不认识</button>' +
+      '<button class="btn btn-fuzzy" onclick="extractedAnswer(\'fuzzy\')" title="快捷键: 2">🤔 模糊</button>' +
+      '<button class="btn btn-know" onclick="extractedAnswer(\'know\')" title="快捷键: 3">✅ 认识</button>' +
+    '</div>' +
+    '<div class="stats">' +
+      '<span><span class="dot dot-forget"></span> 不认识 ' + ss.stats.forget + '</span>' +
+      '<span><span class="dot dot-fuzzy"></span> 模糊 ' + ss.stats.fuzzy + '</span>' +
+      '<span><span class="dot dot-know"></span> 认识 ' + ss.stats.know + '</span>' +
+    '</div>' +
+    '<div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>';
+}
+
+function extractedToggleReveal() {
+  AppState.sessionState.revealed = true;
+  var meaningEl = document.getElementById('extracted-meaning');
+  var exampleEl = document.getElementById('extracted-example');
+  var exampleCnEl = document.getElementById('extracted-example-cn');
+  if (meaningEl) meaningEl.classList.remove('hidden');
+  if (exampleEl) exampleEl.classList.remove('hidden');
+  if (exampleCnEl) exampleCnEl.classList.remove('hidden');
+}
+
+function extractedAnswer(type) {
+  var ss = AppState.sessionState;
+  if (!ss.revealed) { extractedToggleReveal(); return; }
+
+  var w = ss.deck[ss.currentIndex];
+
+  // Update stats
+  ss.stats[type]++;
+
+  // Update progress record
+  var today = new Date().toISOString().slice(0, 10);
+  var masteryLevel = type;
+
+  if (!AppState.data.progress[w.word]) {
+    AppState.data.progress[w.word] = {
+      masteryLevel: masteryLevel,
+      learnedDate: today,
+      lastReviewDate: null,
+      nextReviewDate: null,
+      consecutiveKnown: 0,
+      mastered: false,
+      history: []
+    };
+  }
+
+  // Use ReviewEngine to update review schedule
+  ReviewEngine.updateReview(AppState.data, w.word, masteryLevel);
+
+  // Add to reviewQueue if forget or fuzzy
+  if (type === 'forget' || type === 'fuzzy') {
+    ss.reviewQueue.push(w);
+  }
+
+  // Increment currentIndex
+  ss.currentIndex++;
+
+  // Save session
+  AppState.saveSession();
+
+  // Render next card
+  renderExtractedCard();
+}
+
+// 打乱顺序
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+let deck = shuffle([...words]);
+let current = 0;
+let revealed = false;
+let stats = { forget: 0, fuzzy: 0, know: 0 };
+let reviewQueue = [];
+
+const app = document.getElementById('app');
+
+function render() {
+  if (current >= deck.length) {
+    if (reviewQueue.length > 0) {
+      deck = shuffle([...reviewQueue]);
+      reviewQueue = [];
+      current = 0;
+      render();
+      return;
+    }
+    renderComplete();
+    return;
+  }
+  const w = deck[current];
+  const total = deck.length;
+  const pct = Math.round((current / total) * 100);
+  revealed = false;
+
+  app.innerHTML = `
+    <div class="progress-bar">
+      <span>${current + 1} / ${total}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>${pct}%</span>
+    </div>
+    <div class="category">${w.category}</div>
+    <div class="word">${w.word}</div>
+    <div class="phonetic">${w.phonetic}</div>
+    <div class="meaning hidden" id="meaning" onclick="toggleReveal()">
+      ${w.meaning}
+      <span class="hint">点击或按空格显示释义</span>
+    </div>
+    <div class="example hidden" id="example">${w.example}</div>
+    <div class="btns">
+      <button class="btn btn-forget" onclick="answer('forget')" title="快捷键: 1">😵 不认识</button>
+      <button class="btn btn-fuzzy" onclick="answer('fuzzy')" title="快捷键: 2">🤔 模糊</button>
+      <button class="btn btn-know" onclick="answer('know')" title="快捷键: 3">✅ 认识</button>
+    </div>
+    <div class="stats">
+      <span><span class="dot dot-forget"></span> 不认识 ${stats.forget}</span>
+      <span><span class="dot dot-fuzzy"></span> 模糊 ${stats.fuzzy}</span>
+      <span><span class="dot dot-know"></span> 认识 ${stats.know}</span>
+    </div>
+    <div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>
+  `;
+}
+
+function toggleReveal() {
+  revealed = true;
+  document.getElementById('meaning').classList.remove('hidden');
+  document.getElementById('example').classList.remove('hidden');
+}
+
+function answer(type) {
+  if (!revealed) { toggleReveal(); return; }
+  const w = deck[current];
+  stats[type]++;
+  if (type === 'forget') reviewQueue.push(w);
+  if (type === 'fuzzy') reviewQueue.push(w);
+  current++;
+  render();
+}
+
+function renderComplete() {
+  const total = stats.forget + stats.fuzzy + stats.know;
+  const knowPct = total ? Math.round((stats.know / total) * 100) : 0;
+  app.innerHTML = `
+    <div class="complete">
+      <h2>🎉 本轮完成</h2>
+      <p>共学习 ${total} 个单词</p>
+      <p>✅ 认识 ${stats.know} &nbsp; 🤔 模糊 ${stats.fuzzy} &nbsp; 😵 不认识 ${stats.forget}</p>
+      <p>掌握率 ${knowPct}%</p>
+      <button class="restart" onclick="restart()">再来一轮</button>
+    </div>
+  `;
+}
+
+function restart() {
+  deck = shuffle([...words]);
+  current = 0;
+  stats = { forget: 0, fuzzy: 0, know: 0 };
+  reviewQueue = [];
+  render();
+}
+
+document.addEventListener('keydown', e => {
+  const view = AppState.currentView;
+  
+  // Escape key: return to previous level
+  if (e.key === 'Escape') {
+    if (view === 'dailyLearn' || view === 'review' || view === 'library' || view === 'extractedLearn' || view === 'settings') {
+      AppState.switchView('dashboard');
+    } else if (view === 'wordDetail') {
+      AppState.switchView('library');
+    }
+    return;
+  }
+  
+  // Space and 1/2/3 only work in learning/review modes
+  if (view === 'dailyLearn') {
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); dailyToggleReveal(); }
+    if (e.key === '1') dailyAnswer('forget');
+    if (e.key === '2') dailyAnswer('fuzzy');
+    if (e.key === '3') dailyAnswer('know');
+  } else if (view === 'review') {
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); reviewToggleReveal(); }
+    if (e.key === '1') reviewAnswer('forget');
+    if (e.key === '2') reviewAnswer('fuzzy');
+    if (e.key === '3') reviewAnswer('know');
+  } else if (view === 'extractedLearn') {
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); extractedToggleReveal(); }
+    if (e.key === '1') extractedAnswer('forget');
+    if (e.key === '2') extractedAnswer('fuzzy');
+    if (e.key === '3') extractedAnswer('know');
+  }
+  // Dashboard and other views: no 1/2/3 shortcuts
+});
+
+AppState.init();
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
+}
+</script>
+</body>
+</html>
