@@ -1028,14 +1028,10 @@ function renderDailyLearn() {
       mode: 'dailyLearn'
     };
   } else {
-    // New session
-    const shuffledDeck = todayWords.slice();
-    for (let i = shuffledDeck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledDeck[i], shuffledDeck[j]] = [shuffledDeck[j], shuffledDeck[i]];
-    }
+    // New session — 按Unit顺序学习，不打乱
+    const orderedDeck = todayWords.slice();
     AppState.sessionState = {
-      deck: shuffledDeck,
+      deck: orderedDeck,
       currentIndex: 0,
       revealed: false,
       stats: { forget: 0, fuzzy: 0, know: 0 },
@@ -1190,6 +1186,10 @@ function dailyRecordAnswer(type) {
 function renderSettings() {
   const app = document.getElementById('app');
   const currentValue = AppState.data.settings.dailyNewWords;
+  const progress = AppState.data.progress;
+  const totalLearned = Object.keys(progress).length;
+  const totalHistory = Object.values(progress).reduce((sum, p) => sum + (p.history ? p.history.length : 0), 0);
+
   app.innerHTML = `
     <button class="back-btn" onclick="AppState.switchView('dashboard')">← 返回</button>
     <div class="settings-title">⚙️ 设置</div>
@@ -1200,7 +1200,23 @@ function renderSettings() {
         <button class="settings-save-btn" onclick="saveSettings()">保存</button>
       </div>
     </div>
-    <button class="settings-danger-btn" onclick="resetProgress()">重置学习进度</button>
+
+    <div style="margin-top:24px;padding:16px;background:rgba(255,255,255,0.04);border-radius:12px;">
+      <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:12px;">🧹 清理过往记录</div>
+      <div style="font-size:13px;color:#888;margin-bottom:14px;">
+        已学单词: ${totalLearned}个 &nbsp;|&nbsp; 历史记录: ${totalHistory}条
+      </div>
+      <button class="settings-danger-btn" style="margin-top:0;background:rgba(255,183,77,0.15);color:#ffb74d;" onclick="clearHistory()">
+        🗑 清除学习时间线（保留掌握等级）
+      </button>
+      <button class="settings-danger-btn" style="background:rgba(233,69,96,0.15);color:#ff6b6b;" onclick="clearForgetWords()">
+        🔄 清除"不认识"单词的记录（重新学习）
+      </button>
+      <button class="settings-danger-btn" style="background:rgba(233,69,96,0.15);color:#ff6b6b;" onclick="clearAllLearnedProgress()">
+        🧹 清除所有已学记录（保留设置）
+      </button>
+    </div>
+    <button class="settings-danger-btn" onclick="resetProgress()">⚠️ 完全重置（清除一切）</button>
   `;
 }
 
@@ -1221,6 +1237,46 @@ function resetProgress() {
     Storage.reset();
     AppState.init();
   }
+}
+
+function clearHistory() {
+  const progress = AppState.data.progress;
+  const count = Object.values(progress).reduce((sum, p) => sum + (p.history ? p.history.length : 0), 0);
+  if (count === 0) { alert('没有可清除的历史记录'); return; }
+  if (!confirm('确定清除所有学习时间线记录（' + count + '条）？\n掌握等级和复习计划将保留。')) return;
+  Object.values(progress).forEach(p => { p.history = []; });
+  Storage.save(AppState.data);
+  alert('已清除 ' + count + ' 条历史记录');
+  renderSettings();
+}
+
+function clearForgetWords() {
+  const progress = AppState.data.progress;
+  const forgetKeys = Object.keys(progress).filter(k => progress[k].masteryLevel === 'forget');
+  if (forgetKeys.length === 0) { alert('没有标记为"不认识"的单词'); return; }
+  if (!confirm('确定清除 ' + forgetKeys.length + ' 个"不认识"单词的记录？\n这些单词将回到未学习状态，可重新学习。')) return;
+  forgetKeys.forEach(k => { delete progress[k]; });
+  // Regenerate plan groups for unlearned words
+  const learnedKeys = new Set(Object.keys(progress));
+  const unlearnedWords = words.filter(w => !learnedKeys.has(w.word));
+  AppState.data.plan.groups = PlanEngine.generateGroups(unlearnedWords, AppState.data.settings.dailyNewWords);
+  AppState.data.plan.currentGroupIndex = 0;
+  Storage.save(AppState.data);
+  alert('已清除 ' + forgetKeys.length + ' 个单词的记录');
+  renderSettings();
+}
+
+function clearAllLearnedProgress() {
+  const count = Object.keys(AppState.data.progress).length;
+  if (count === 0) { alert('没有已学记录'); return; }
+  if (!confirm('确定清除所有 ' + count + ' 个单词的学习记录？\n设置和每日数量将保留，所有单词回到未学习状态。')) return;
+  AppState.data.progress = {};
+  AppState.data.plan.groups = PlanEngine.generateGroups(words, AppState.data.settings.dailyNewWords);
+  AppState.data.plan.currentGroupIndex = 0;
+  AppState.data.session = { date: new Date().toISOString().slice(0, 10), mode: null, currentIndex: 0, stats: { forget: 0, fuzzy: 0, know: 0 }, reviewQueue: [] };
+  Storage.save(AppState.data);
+  alert('已清除所有学习记录');
+  renderSettings();
 }
 
 // ===== renderReview 复习模式视图 =====
