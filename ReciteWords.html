@@ -233,6 +233,33 @@ body {
 /* Example translation */
 .example-cn { font-size: 12px; color: #997755; line-height: 1.5; margin-top: 2px; padding: 0 4px; transition: opacity 0.3s; }
 .example-cn.hidden { opacity: 0; }
+
+/* Unit select styles */
+.unit-list { display: flex; flex-direction: column; gap: 10px; max-height: 450px; overflow-y: auto; }
+.unit-item {
+  display: flex; align-items: center; justify-content: space-between; padding: 14px 16px;
+  background: rgba(255,255,255,0.04); border-radius: 12px; cursor: pointer; transition: all 0.2s;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.unit-item:hover { background: rgba(255,255,255,0.1); border-color: rgba(233,69,96,0.3); }
+.unit-item-name { font-size: 15px; font-weight: 600; color: #fff; }
+.unit-item-info { font-size: 12px; color: #888; margin-top: 2px; }
+.unit-item-progress { text-align: right; }
+.unit-item-progress .unit-pct { font-size: 14px; font-weight: 600; color: #66bb6a; }
+.unit-item-progress .unit-count { font-size: 11px; color: #888; }
+
+/* Mode toggle on dashboard */
+.mode-toggle {
+  display: flex; gap: 0; margin-bottom: 20px; border-radius: 10px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.mode-toggle-btn {
+  flex: 1; padding: 10px 0; border: none; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; text-align: center;
+  background: rgba(255,255,255,0.04); color: #888;
+}
+.mode-toggle-btn.active { background: rgba(233,69,96,0.2); color: #e94560; }
+.mode-toggle-btn:hover:not(.active) { background: rgba(255,255,255,0.08); color: #ccc; }
 </style>
 </head>
 <body>
@@ -812,6 +839,7 @@ const AppState = {
     mode: null
   },
   _selectedWord: null,
+  _selectedUnit: null,
 
   init() {
     let data = Storage.load();
@@ -845,7 +873,7 @@ const AppState = {
 
   switchView(targetView) {
     // Save current session progress if in a learning/review mode
-    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn' || this.currentView === 'spelling' || this.currentView === 'focusLearn') {
+    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn' || this.currentView === 'spelling' || this.currentView === 'focusLearn' || this.currentView === 'unitLearn') {
       this.saveSession();
     }
 
@@ -878,6 +906,12 @@ const AppState = {
         break;
       case 'settings':
         renderSettings();
+        break;
+      case 'unitSelect':
+        renderUnitSelect();
+        break;
+      case 'unitLearn':
+        renderUnitLearn(this._selectedUnit);
         break;
     }
   },
@@ -937,18 +971,26 @@ function renderDashboard() {
   const extractedCount = AppState.data.extractedWords.words ? AppState.data.extractedWords.words.length : 0;
   const app = document.getElementById('app');
 
+  // Collect all unique categories (units)
+  const allCategories = [...new Set(words.map(w => w.category))];
+
   let navButtons = '';
 
-  // 继续学习按钮
+  // 每日模式 - 继续学习按钮
   if (stats.allDone) {
     navButtons += `<button class="nav-btn nav-btn-learn" disabled>
-      <span>📖 继续学习<br><span class="nav-sub">所有新单词已学完</span></span>
+      <span>📖 每日学习<br><span class="nav-sub">所有新单词已学完</span></span>
     </button>`;
   } else {
     navButtons += `<button class="nav-btn nav-btn-learn" onclick="AppState.switchView('dailyLearn')">
-      <span>📖 继续学习<br><span class="nav-sub">今日进度: ${stats.todayProgress}/${stats.todayTotal}</span></span>
+      <span>📖 每日学习<br><span class="nav-sub">今日进度: ${stats.todayProgress}/${stats.todayTotal}</span></span>
     </button>`;
   }
+
+  // Unit模式 - 选择Unit按钮
+  navButtons += `<button class="nav-btn nav-btn-extracted" onclick="AppState.switchView('unitSelect')">
+    <span>� Unit模式<br><span class="nav-sub">选择Unit直接学习 · 共${allCategories.length}个分类</span></span>
+  </button>`;
 
   // 开始复习按钮
   if (stats.dueReviewCount === 0) {
@@ -957,7 +999,7 @@ function renderDashboard() {
     </button>`;
   } else {
     navButtons += `<button class="nav-btn nav-btn-review" onclick="AppState.switchView('review')">
-      <span>🔄 开始复习<br><span class="nav-sub">待复习: ${stats.dueReviewCount}个</span></span>
+      <span>� 开始复习<br><span class="nav-sub">待复习: ${stats.dueReviewCount}个</span></span>
     </button>`;
   }
 
@@ -2201,6 +2243,202 @@ function focusAnswer(type) {
   renderFocusCard();
 }
 
+// ===== Unit模式 - 选择Unit =====
+function renderUnitSelect() {
+  const app = document.getElementById('app');
+  const progress = AppState.data.progress;
+
+  // Collect unique categories preserving order
+  const seen = new Set();
+  const categories = [];
+  for (const w of words) {
+    if (!seen.has(w.category)) {
+      seen.add(w.category);
+      categories.push(w.category);
+    }
+  }
+
+  let html = '<button class="back-btn" onclick="AppState.switchView(\'dashboard\')">← 返回</button>';
+  html += '<div class="dashboard-title">📂 选择Unit</div>';
+  html += '<div class="unit-list">';
+
+  categories.forEach(cat => {
+    const catWords = words.filter(w => w.category === cat);
+    const total = catWords.length;
+    const learned = catWords.filter(w => w.word in progress).length;
+    const pct = total > 0 ? Math.round(learned / total * 100) : 0;
+    const pctColor = pct >= 100 ? '#66bb6a' : pct > 0 ? '#ffb74d' : '#888';
+
+    html += '<div class="unit-item" onclick="startUnitLearn(\'' + cat.replace(/'/g, "\\'") + '\')">';
+    html += '<div>';
+    html += '<div class="unit-item-name">' + cat + '</div>';
+    html += '<div class="unit-item-info">' + total + '个单词</div>';
+    html += '</div>';
+    html += '<div class="unit-item-progress">';
+    html += '<div class="unit-pct" style="color:' + pctColor + '">' + pct + '%</div>';
+    html += '<div class="unit-count">' + learned + '/' + total + '</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  app.innerHTML = html;
+}
+
+function startUnitLearn(category) {
+  AppState._selectedUnit = category;
+  AppState.switchView('unitLearn');
+}
+
+function renderUnitLearn(category) {
+  const app = document.getElementById('app');
+  if (!category) { AppState.switchView('unitSelect'); return; }
+
+  const catWords = words.filter(w => w.category === category);
+  if (catWords.length === 0) {
+    app.innerHTML = '<div class="complete"><h2>该分类没有单词</h2>' +
+      '<button class="restart" onclick="AppState.switchView(\'unitSelect\')">← 返回</button></div>';
+    return;
+  }
+
+  // 按原始顺序学习，不打乱
+  AppState.sessionState = {
+    deck: catWords.slice(),
+    currentIndex: 0,
+    revealed: false,
+    stats: { forget: 0, fuzzy: 0, know: 0 },
+    reviewQueue: [],
+    mode: 'unitLearn'
+  };
+
+  renderUnitCard();
+}
+
+function renderUnitCard() {
+  const ss = AppState.sessionState;
+  const app = document.getElementById('app');
+
+  if (ss.currentIndex >= ss.deck.length) {
+    if (ss.reviewQueue.length > 0) {
+      const rq = ss.reviewQueue.slice();
+      for (let i = rq.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rq[i], rq[j]] = [rq[j], rq[i]];
+      }
+      ss.deck = rq;
+      ss.reviewQueue = [];
+      ss.currentIndex = 0;
+      ss.revealed = false;
+      renderUnitCard();
+      return;
+    }
+
+    const total = ss.stats.forget + ss.stats.fuzzy + ss.stats.know;
+    const knowPct = total ? Math.round((ss.stats.know / total) * 100) : 0;
+
+    app.innerHTML = `
+      <div class="complete">
+        <h2>🎉 Unit学习完成</h2>
+        <p>${AppState._selectedUnit} · 共学习 ${total} 个单词</p>
+        <p>✅ 认识 ${ss.stats.know} &nbsp; 🤔 模糊 ${ss.stats.fuzzy} &nbsp; 😵 不认识 ${ss.stats.forget}</p>
+        <p>掌握率 ${knowPct}%</p>
+        <button class="restart" onclick="AppState.switchView('unitSelect')">📂 选择其他Unit</button>
+        <button class="restart" style="margin-left:8px" onclick="AppState.switchView('dashboard')">← 返回主页</button>
+      </div>`;
+    return;
+  }
+
+  const w = ss.deck[ss.currentIndex];
+  const total = ss.deck.length;
+  const pct = Math.round((ss.currentIndex / total) * 100);
+  ss.revealed = false;
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="AppState.switchView('unitSelect')">← 返回Unit列表</button>
+    <div class="progress-bar">
+      <span>${ss.currentIndex + 1} / ${total}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>${pct}%</span>
+    </div>
+    <div class="category">${w.category}</div>
+    <div class="word">${w.word} ${speakBtnHtml(w.word, 'speak-word')}</div>
+    <div class="phonetic">${w.phonetic}</div>
+    <div class="meaning hidden" id="unit-meaning" onclick="unitToggleReveal()">
+      ${w.meaning}
+      <span class="hint">点击或按空格显示释义</span>
+    </div>
+    <div class="example hidden" id="unit-example">${w.example} ${speakBtnHtml(w.example, 'speak-example')}</div>
+    <div class="example-cn hidden" id="unit-example-cn">${w.exampleCn || ''}</div>
+    <div class="btns">
+      <button class="btn btn-forget" onclick="unitAnswer('forget')" title="快捷键: 1">😵 不认识</button>
+      <button class="btn btn-fuzzy" onclick="unitAnswer('fuzzy')" title="快捷键: 2">🤔 模糊</button>
+      <button class="btn btn-know" onclick="unitAnswer('know')" title="快捷键: 3">✅ 认识</button>
+    </div>
+    <div class="stats">
+      <span><span class="dot dot-forget"></span> 不认识 ${ss.stats.forget}</span>
+      <span><span class="dot dot-fuzzy"></span> 模糊 ${ss.stats.fuzzy}</span>
+      <span><span class="dot dot-know"></span> 认识 ${ss.stats.know}</span>
+    </div>
+    <div class="keyboard-hint">空格 = 显示释义 &nbsp;|&nbsp; 1 = 不认识 &nbsp;|&nbsp; 2 = 模糊 &nbsp;|&nbsp; 3 = 认识</div>
+    <div class="keyboard-hint-mobile">点击释义区域显示 &nbsp;|&nbsp; 点击按钮作答</div>
+  `;
+}
+
+function unitToggleReveal() {
+  AppState.sessionState.revealed = true;
+  const meaningEl = document.getElementById('unit-meaning');
+  const exampleEl = document.getElementById('unit-example');
+  const exampleCnEl = document.getElementById('unit-example-cn');
+  if (meaningEl) meaningEl.classList.remove('hidden');
+  if (exampleEl) exampleEl.classList.remove('hidden');
+  if (exampleCnEl) exampleCnEl.classList.remove('hidden');
+}
+
+function unitAnswer(type) {
+  const ss = AppState.sessionState;
+
+  if (!ss.revealed) {
+    unitToggleReveal();
+    if (type === 'know') return;
+    setTimeout(() => { unitRecordAnswer(type); }, 1200);
+    return;
+  }
+
+  unitRecordAnswer(type);
+}
+
+function unitRecordAnswer(type) {
+  const ss = AppState.sessionState;
+  const w = ss.deck[ss.currentIndex];
+
+  ss.stats[type]++;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const masteryLevel = type;
+
+  if (!AppState.data.progress[w.word]) {
+    AppState.data.progress[w.word] = {
+      masteryLevel: masteryLevel,
+      learnedDate: today,
+      lastReviewDate: null,
+      nextReviewDate: null,
+      consecutiveKnown: 0,
+      mastered: false,
+      history: []
+    };
+  }
+
+  ReviewEngine.updateReview(AppState.data, w.word, masteryLevel);
+
+  if (type === 'forget' || type === 'fuzzy') {
+    ss.reviewQueue.push(w);
+  }
+
+  ss.currentIndex++;
+  AppState.saveSession();
+  renderUnitCard();
+}
+
 // 打乱顺序
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -2311,6 +2549,10 @@ document.addEventListener('keydown', e => {
       AppState.switchView('dashboard');
     } else if (view === 'wordDetail') {
       AppState.switchView('library');
+    } else if (view === 'unitLearn') {
+      AppState.switchView('unitSelect');
+    } else if (view === 'unitSelect') {
+      AppState.switchView('dashboard');
     }
     return;
   }
@@ -2331,6 +2573,11 @@ document.addEventListener('keydown', e => {
     if (e.key === '1') extractedAnswer('forget');
     if (e.key === '2') extractedAnswer('fuzzy');
     if (e.key === '3') extractedAnswer('know');
+  } else if (view === 'unitLearn') {
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); unitToggleReveal(); }
+    if (e.key === '1') unitAnswer('forget');
+    if (e.key === '2') unitAnswer('fuzzy');
+    if (e.key === '3') unitAnswer('know');
   }
   // Dashboard and other views: no 1/2/3 shortcuts
 });
@@ -2360,7 +2607,7 @@ function bootApp() {
 bootApp();
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
+  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, renderUnitSelect, renderUnitLearn, renderUnitCard, unitToggleReveal, unitAnswer, startUnitLearn, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
 }
 </script>
 </body>
