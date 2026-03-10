@@ -2031,11 +2031,8 @@ function renderSpelling() {
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
 
-  // Limit to 20 words per session
-  const sessionDeck = deck.slice(0, 20);
-
   AppState.sessionState = {
-    deck: sessionDeck,
+    deck: deck,
     currentIndex: 0,
     revealed: false,
     stats: { forget: 0, fuzzy: 0, know: 0 },
