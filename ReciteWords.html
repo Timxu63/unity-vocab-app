@@ -945,6 +945,9 @@ const AppState = {
       case 'spelling':
         renderSpelling();
         break;
+      case 'spellingUnitSelect':
+        renderSpellingUnitSelect();
+        break;
       case 'focusLearn':
         renderFocusCard();
         break;
@@ -1060,7 +1063,7 @@ function renderDashboard() {
 
   // 拼写练习按钮
   if (stats.totalLearned > 0) {
-    navButtons += `<button class="nav-btn nav-btn-spell" onclick="AppState.switchView('spelling')">
+    navButtons += `<button class="nav-btn nav-btn-spell" onclick="AppState.switchView('spellingUnitSelect')">
       <span>✏️ 拼写练习<br><span class="nav-sub">已学单词拼写测试</span></span>
     </button>`;
   }
@@ -1889,8 +1892,68 @@ const SpellingState = {
   hintsUsed: 0,
   maxHints: 3,
   answered: false,
-  currentAnswer: ''
+  currentAnswer: '',
+  selectedCategory: null // null = all
 };
+
+function renderSpellingUnitSelect() {
+  const app = document.getElementById('app');
+  const progress = AppState.data.progress;
+
+  // Collect unique categories preserving order
+  const seen = new Set();
+  const categories = [];
+  for (const w of words) {
+    if (!seen.has(w.category)) {
+      seen.add(w.category);
+      categories.push(w.category);
+    }
+  }
+
+  // Count learned words per category
+  const allLearned = Object.keys(progress);
+  const totalLearned = allLearned.filter(k => words.some(w => w.word === k)).length;
+
+  let html = '<button class="back-btn" onclick="AppState.switchView(\'dashboard\')">← 返回</button>';
+  html += '<div class="dashboard-title">✏️ 拼写练习 - 选择范围</div>';
+  html += '<div class="unit-list">';
+
+  // "All" option
+  html += '<div class="unit-item" onclick="startSpellingWithCategory(null)">';
+  html += '<div>';
+  html += '<div class="unit-item-name">📝 全部已学单词</div>';
+  html += '<div class="unit-item-info">从所有已学单词中随机抽取</div>';
+  html += '</div>';
+  html += '<div class="unit-item-progress">';
+  html += '<div class="unit-count">' + totalLearned + '词</div>';
+  html += '</div>';
+  html += '</div>';
+
+  categories.forEach(cat => {
+    const catWords = words.filter(w => w.category === cat);
+    const total = catWords.length;
+    const learned = catWords.filter(w => w.word in progress).length;
+    if (learned === 0) return; // skip categories with no learned words
+
+    html += '<div class="unit-item" onclick="startSpellingWithCategory(\'' + cat.replace(/'/g, "\\'") + '\')">';
+    html += '<div>';
+    html += '<div class="unit-item-name">' + cat + '</div>';
+    html += '<div class="unit-item-info">' + total + '个单词 · 已学' + learned + '个</div>';
+    html += '</div>';
+    html += '<div class="unit-item-progress">';
+    html += '<div class="unit-count">' + learned + '词</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  app.innerHTML = html;
+}
+
+function startSpellingWithCategory(category) {
+  SpellingState.selectedCategory = category;
+  AppState.switchView('spelling');
+}
 
 function renderSpelling() {
   const app = document.getElementById('app');
@@ -1907,10 +1970,21 @@ function renderSpelling() {
     return;
   }
 
-  // Build deck from learned words
+  // Build deck from learned words, optionally filtered by category
+  const selectedCat = SpellingState.selectedCategory;
   const deck = learnedKeys
     .map(key => words.find(w => w.word === key))
-    .filter(Boolean);
+    .filter(w => w && (!selectedCat || w.category === selectedCat));
+
+  if (deck.length === 0) {
+    app.innerHTML = `
+      <div class="complete">
+        <h2>✏️ 拼写练习</h2>
+        <p>该分类下还没有学过的单词</p>
+        <button class="restart" onclick="AppState.switchView('spellingUnitSelect')">← 返回选择</button>
+      </div>`;
+    return;
+  }
 
   // Shuffle
   for (let i = deck.length - 1; i > 0; i--) {
@@ -1951,7 +2025,7 @@ function renderSpellingCard() {
         <p>共测试 ${total} 个单词</p>
         <p>✅ 正确 ${ss.stats.know} &nbsp; ❌ 错误 ${ss.stats.forget}</p>
         <p>正确率 ${knowPct}%</p>
-        <button class="restart" onclick="AppState.switchView('dashboard')">← 返回主页</button>
+        <button class="restart" onclick="AppState.switchView('spellingUnitSelect')">📂 选择其他分类</button>
         <button class="restart" style="margin-left:8px" onclick="renderSpelling()">再来一轮</button>
       </div>`;
     return;
@@ -1974,7 +2048,7 @@ function renderSpellingCard() {
   }).join('');
 
   app.innerHTML = `
-    <button class="back-btn" onclick="AppState.switchView('dashboard')">← 返回</button>
+    <button class="back-btn" onclick="AppState.switchView('spellingUnitSelect')">← 返回</button>
     <div class="progress-bar">
       <span>${ss.currentIndex + 1} / ${total}</span>
       <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -2944,7 +3018,11 @@ document.addEventListener('keydown', e => {
   
   // Escape key: return to previous level
   if (e.key === 'Escape') {
-    if (view === 'dailyLearn' || view === 'review' || view === 'library' || view === 'extractedLearn' || view === 'settings' || view === 'spelling' || view === 'focusLearn') {
+    if (view === 'dailyLearn' || view === 'review' || view === 'library' || view === 'extractedLearn' || view === 'settings' || view === 'focusLearn') {
+      AppState.switchView('dashboard');
+    } else if (view === 'spelling') {
+      AppState.switchView('spellingUnitSelect');
+    } else if (view === 'spellingUnitSelect') {
       AppState.switchView('dashboard');
     } else if (view === 'wordDetail') {
       AppState.switchView('library');
@@ -3008,7 +3086,7 @@ function bootApp() {
 bootApp();
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, renderUnitSelect, renderUnitLearn, renderUnitCard, unitToggleReveal, unitAnswer, startUnitLearn, ExamState, renderExamSetup, startExam, renderExamQuestion, renderExamResult, examChoose, examSpellSubmit, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
+  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, renderSpellingUnitSelect, startSpellingWithCategory, renderUnitSelect, renderUnitLearn, renderUnitCard, unitToggleReveal, unitAnswer, startUnitLearn, ExamState, renderExamSetup, startExam, renderExamQuestion, renderExamResult, examChoose, examSpellSubmit, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
 }
 </script>
 </body>
