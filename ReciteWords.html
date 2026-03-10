@@ -260,6 +260,50 @@ body {
 }
 .mode-toggle-btn.active { background: rgba(233,69,96,0.2); color: #e94560; }
 .mode-toggle-btn:hover:not(.active) { background: rgba(255,255,255,0.08); color: #ccc; }
+
+/* Exam styles */
+.exam-setup-title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 20px; color: #fff; }
+.exam-option-group { margin-bottom: 18px; }
+.exam-option-label { font-size: 14px; color: #aaa; margin-bottom: 8px; }
+.exam-option-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.exam-chip {
+  padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04); color: #aaa;
+}
+.exam-chip:hover { background: rgba(255,255,255,0.1); color: #e0e0e0; }
+.exam-chip.active { background: rgba(233,69,96,0.2); color: #e94560; border-color: rgba(233,69,96,0.4); }
+.exam-start-btn {
+  width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700;
+  cursor: pointer; background: rgba(233,69,96,0.25); color: #e94560; transition: all 0.2s; margin-top: 12px;
+}
+.exam-start-btn:hover { background: rgba(233,69,96,0.4); }
+.exam-start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.exam-choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.exam-choice {
+  padding: 14px 16px; border-radius: 12px; font-size: 15px; cursor: pointer;
+  transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04); color: #e0e0e0; text-align: left;
+}
+.exam-choice:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+.exam-choice.selected { border-color: rgba(83,52,131,0.6); background: rgba(83,52,131,0.2); }
+.exam-choice.correct { border-color: rgba(76,175,80,0.6); background: rgba(76,175,80,0.15); color: #66bb6a; }
+.exam-choice.wrong { border-color: rgba(233,69,96,0.6); background: rgba(233,69,96,0.15); color: #e94560; }
+.exam-choice.correct-answer { border-color: rgba(76,175,80,0.6); background: rgba(76,175,80,0.1); }
+.exam-question-text { font-size: 14px; color: #aaa; margin-bottom: 6px; }
+.exam-question-word { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.exam-question-phonetic { font-size: 14px; color: #666; margin-bottom: 16px; }
+.exam-result-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 16px 0; }
+.exam-result-bar .bar-correct { background: #66bb6a; }
+.exam-result-bar .bar-wrong { background: #e94560; }
+.exam-result-bar .bar-skip { background: #555; }
+.exam-wrong-list { max-height: 250px; overflow-y: auto; }
+.exam-wrong-item {
+  display: flex; justify-content: space-between; align-items: center; padding: 10px 12px;
+  background: rgba(255,255,255,0.04); border-radius: 8px; margin-bottom: 6px; font-size: 14px;
+}
+.exam-wrong-item .ew-word { color: #fff; font-weight: 600; }
+.exam-wrong-item .ew-meaning { color: #888; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -873,7 +917,7 @@ const AppState = {
 
   switchView(targetView) {
     // Save current session progress if in a learning/review mode
-    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn' || this.currentView === 'spelling' || this.currentView === 'focusLearn' || this.currentView === 'unitLearn') {
+    if (this.currentView === 'dailyLearn' || this.currentView === 'review' || this.currentView === 'extractedLearn' || this.currentView === 'spelling' || this.currentView === 'focusLearn' || this.currentView === 'unitLearn' || this.currentView === 'exam') {
       this.saveSession();
     }
 
@@ -912,6 +956,12 @@ const AppState = {
         break;
       case 'unitLearn':
         renderUnitLearn(this._selectedUnit);
+        break;
+      case 'examSetup':
+        renderExamSetup();
+        break;
+      case 'exam':
+        renderExamQuestion();
         break;
     }
   },
@@ -1014,6 +1064,11 @@ function renderDashboard() {
       <span>✏️ 拼写练习<br><span class="nav-sub">已学单词拼写测试</span></span>
     </button>`;
   }
+
+  // 考试按钮
+  navButtons += `<button class="nav-btn nav-btn-review" onclick="AppState.switchView('examSetup')">
+    <span>📝 单元考试<br><span class="nav-sub">选择范围，测试掌握程度</span></span>
+  </button>`;
 
   // 例句词汇按钮（无提取词时隐藏）
   if (extractedCount > 0) {
@@ -2439,6 +2494,350 @@ function unitRecordAnswer(type) {
   renderUnitCard();
 }
 
+// ===== 考试模式 =====
+const ExamState = {
+  scope: '',        // '' = all, or category name
+  questionType: 'mixed', // 'en2cn', 'cn2en', 'spell', 'mixed'
+  questionCount: 20,
+  questions: [],
+  currentIndex: 0,
+  score: 0,
+  answered: false,
+  wrongList: [],
+  selectedChoice: -1
+};
+
+function renderExamSetup() {
+  const app = document.getElementById('app');
+
+  // Collect categories
+  const seen = new Set();
+  const categories = [];
+  for (const w of words) {
+    if (!seen.has(w.category)) {
+      seen.add(w.category);
+      categories.push(w.category);
+    }
+  }
+
+  let scopeChips = '<span class="exam-chip active" onclick="examSetScope(this, \'\')" data-val="">全部</span>';
+  categories.forEach(cat => {
+    scopeChips += '<span class="exam-chip" onclick="examSetScope(this, \'' + cat.replace(/'/g, "\\'") + '\')" data-val="' + cat + '">' + cat + '</span>';
+  });
+
+  const typeOptions = [
+    { val: 'mixed', label: '综合' },
+    { val: 'en2cn', label: '英译中' },
+    { val: 'cn2en', label: '中译英' },
+    { val: 'spell', label: '拼写' }
+  ];
+  let typeChips = '';
+  typeOptions.forEach(t => {
+    const active = ExamState.questionType === t.val ? ' active' : '';
+    typeChips += '<span class="exam-chip' + active + '" onclick="examSetType(this, \'' + t.val + '\')">' + t.label + '</span>';
+  });
+
+  const countOptions = [10, 20, 30, 50];
+  let countChips = '';
+  countOptions.forEach(n => {
+    const active = ExamState.questionCount === n ? ' active' : '';
+    countChips += '<span class="exam-chip' + active + '" onclick="examSetCount(this, ' + n + ')">' + n + '题</span>';
+  });
+
+  // Count available words for selected scope
+  const scopeWords = ExamState.scope ? words.filter(w => w.category === ExamState.scope) : words;
+  const available = scopeWords.length;
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="AppState.switchView('dashboard')">← 返回</button>
+    <div class="exam-setup-title">📝 单元考试</div>
+    <div class="exam-option-group">
+      <div class="exam-option-label">考试范围</div>
+      <div class="exam-option-row" id="exam-scope-row">${scopeChips}</div>
+    </div>
+    <div class="exam-option-group">
+      <div class="exam-option-label">题目类型</div>
+      <div class="exam-option-row" id="exam-type-row">${typeChips}</div>
+    </div>
+    <div class="exam-option-group">
+      <div class="exam-option-label">题目数量</div>
+      <div class="exam-option-row" id="exam-count-row">${countChips}</div>
+    </div>
+    <div style="text-align:center;font-size:13px;color:#888;margin-top:8px;">
+      可用单词: ${available}个
+    </div>
+    <button class="exam-start-btn" onclick="startExam()" ${available < 4 ? 'disabled title="至少需要4个单词"' : ''}>开始考试</button>
+  `;
+}
+
+function examSetScope(el, val) {
+  ExamState.scope = val;
+  document.querySelectorAll('#exam-scope-row .exam-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  // Update available count
+  const scopeWords = val ? words.filter(w => w.category === val) : words;
+  const countEl = document.querySelector('.exam-start-btn');
+  const infoEl = countEl.previousElementSibling;
+  infoEl.textContent = '可用单词: ' + scopeWords.length + '个';
+  countEl.disabled = scopeWords.length < 4;
+}
+
+function examSetType(el, val) {
+  ExamState.questionType = val;
+  document.querySelectorAll('#exam-type-row .exam-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function examSetCount(el, val) {
+  ExamState.questionCount = val;
+  document.querySelectorAll('#exam-count-row .exam-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function startExam() {
+  const scopeWords = ExamState.scope ? words.filter(w => w.category === ExamState.scope) : words;
+  if (scopeWords.length < 4) return;
+
+  const count = Math.min(ExamState.questionCount, scopeWords.length);
+
+  // Shuffle and pick words
+  const shuffled = scopeWords.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const picked = shuffled.slice(0, count);
+
+  // Generate questions
+  const questions = [];
+  const types = ExamState.questionType === 'mixed' ? ['en2cn', 'cn2en', 'spell'] : [ExamState.questionType];
+
+  picked.forEach(w => {
+    const qType = types[Math.floor(Math.random() * types.length)];
+
+    if (qType === 'spell') {
+      questions.push({ type: 'spell', word: w, answer: w.word });
+    } else if (qType === 'en2cn') {
+      // Show English word, pick Chinese meaning
+      const choices = generateChoices(w, scopeWords, 'meaning');
+      questions.push({ type: 'en2cn', word: w, choices, correctIndex: choices.indexOf(w.meaning) });
+    } else {
+      // Show Chinese meaning, pick English word
+      const choices = generateChoices(w, scopeWords, 'word');
+      questions.push({ type: 'cn2en', word: w, choices, correctIndex: choices.indexOf(w.word) });
+    }
+  });
+
+  ExamState.questions = questions;
+  ExamState.currentIndex = 0;
+  ExamState.score = 0;
+  ExamState.wrongList = [];
+  ExamState.answered = false;
+  ExamState.selectedChoice = -1;
+
+  AppState.currentView = 'exam';
+  renderExamQuestion();
+}
+
+function generateChoices(targetWord, pool, field) {
+  const correct = targetWord[field];
+  const others = pool.filter(w => w[field] !== correct);
+
+  // Shuffle others and pick 3
+  for (let i = others.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [others[i], others[j]] = [others[j], others[i]];
+  }
+  const distractors = others.slice(0, 3).map(w => w[field]);
+
+  // Combine and shuffle
+  const choices = [correct, ...distractors];
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
+  return choices;
+}
+
+function renderExamQuestion() {
+  const app = document.getElementById('app');
+  const q = ExamState.questions[ExamState.currentIndex];
+
+  if (!q) {
+    renderExamResult();
+    return;
+  }
+
+  const total = ExamState.questions.length;
+  const idx = ExamState.currentIndex;
+  const pct = Math.round((idx / total) * 100);
+  ExamState.answered = false;
+  ExamState.selectedChoice = -1;
+
+  let questionHtml = '';
+
+  if (q.type === 'en2cn') {
+    questionHtml = `
+      <div class="exam-question-text">选出正确的中文释义</div>
+      <div class="exam-question-word">${q.word.word} ${speakBtnHtml(q.word.word, 'speak-exam')}</div>
+      <div class="exam-question-phonetic">${q.word.phonetic}</div>
+      <div class="exam-choices" id="exam-choices">
+        ${q.choices.map((c, i) => '<div class="exam-choice" onclick="examChoose(' + i + ')">' + c + '</div>').join('')}
+      </div>
+    `;
+  } else if (q.type === 'cn2en') {
+    questionHtml = `
+      <div class="exam-question-text">选出正确的英文单词</div>
+      <div class="exam-question-word" style="font-size:22px;">${q.word.meaning}</div>
+      <div class="exam-question-phonetic">&nbsp;</div>
+      <div class="exam-choices" id="exam-choices">
+        ${q.choices.map((c, i) => '<div class="exam-choice" onclick="examChoose(' + i + ')">' + c + '</div>').join('')}
+      </div>
+    `;
+  } else {
+    // spell
+    questionHtml = `
+      <div class="exam-question-text">根据释义拼写单词</div>
+      <div class="exam-question-word" style="font-size:22px;">${q.word.meaning}</div>
+      <div class="exam-question-phonetic">${q.word.phonetic} ${speakBtnHtml(q.word.word, 'speak-exam')}</div>
+      <div class="spell-input-wrap">
+        <input class="spell-input" id="exam-spell-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+          placeholder="输入单词..." onkeydown="if(event.key==='Enter'){event.preventDefault();examSpellSubmit();}">
+      </div>
+      <div class="spell-feedback" id="exam-spell-feedback"></div>
+      <div style="text-align:center;">
+        <button class="btn btn-submit" onclick="examSpellSubmit()" style="padding:10px 28px;">提交</button>
+      </div>
+    `;
+  }
+
+  app.innerHTML = `
+    <button class="back-btn" onclick="if(confirm('确定退出考试？')){AppState.switchView('dashboard')}">← 退出考试</button>
+    <div class="progress-bar">
+      <span>${idx + 1} / ${total}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>得分: ${ExamState.score}</span>
+    </div>
+    <div class="category">${q.word.category}</div>
+    ${questionHtml}
+  `;
+
+  if (q.type === 'spell') {
+    setTimeout(() => {
+      const input = document.getElementById('exam-spell-input');
+      if (input) input.focus();
+    }, 50);
+  }
+}
+
+function examChoose(index) {
+  if (ExamState.answered) return;
+  ExamState.answered = true;
+  ExamState.selectedChoice = index;
+
+  const q = ExamState.questions[ExamState.currentIndex];
+  const choiceEls = document.querySelectorAll('#exam-choices .exam-choice');
+  const isCorrect = index === q.correctIndex;
+
+  if (isCorrect) {
+    ExamState.score++;
+    choiceEls[index].classList.add('correct');
+  } else {
+    choiceEls[index].classList.add('wrong');
+    choiceEls[q.correctIndex].classList.add('correct-answer');
+    ExamState.wrongList.push(q.word);
+  }
+
+  // Auto advance after delay
+  setTimeout(() => {
+    ExamState.currentIndex++;
+    renderExamQuestion();
+  }, isCorrect ? 600 : 1500);
+}
+
+function examSpellSubmit() {
+  if (ExamState.answered) return;
+  const input = document.getElementById('exam-spell-input');
+  const feedback = document.getElementById('exam-spell-feedback');
+  const typed = (input.value || '').trim();
+  if (!typed) return;
+
+  ExamState.answered = true;
+  const q = ExamState.questions[ExamState.currentIndex];
+  const isCorrect = typed.toLowerCase() === q.word.word.toLowerCase();
+
+  if (isCorrect) {
+    ExamState.score++;
+    input.classList.add('correct');
+    feedback.className = 'spell-feedback success';
+    feedback.textContent = '✅ 正确！';
+  } else {
+    input.classList.add('wrong');
+    feedback.className = 'spell-feedback fail';
+    feedback.innerHTML = '❌ 正确答案：<span style="color:#fff;font-weight:700;">' + q.word.word + '</span>';
+    ExamState.wrongList.push(q.word);
+  }
+  input.disabled = true;
+
+  setTimeout(() => {
+    ExamState.currentIndex++;
+    renderExamQuestion();
+  }, isCorrect ? 600 : 1500);
+}
+
+function renderExamResult() {
+  const app = document.getElementById('app');
+  const total = ExamState.questions.length;
+  const score = ExamState.score;
+  const wrong = total - score;
+  const pct = total > 0 ? Math.round(score / total * 100) : 0;
+
+  let grade = '';
+  let gradeColor = '';
+  if (pct >= 90) { grade = 'A+ 优秀'; gradeColor = '#66bb6a'; }
+  else if (pct >= 80) { grade = 'A 良好'; gradeColor = '#66bb6a'; }
+  else if (pct >= 70) { grade = 'B 中等'; gradeColor = '#ffb74d'; }
+  else if (pct >= 60) { grade = 'C 及格'; gradeColor = '#ffb74d'; }
+  else { grade = 'D 不及格'; gradeColor = '#e94560'; }
+
+  const correctPct = total > 0 ? (score / total * 100) : 0;
+  const wrongPct = total > 0 ? (wrong / total * 100) : 0;
+
+  let wrongHtml = '';
+  if (ExamState.wrongList.length > 0) {
+    wrongHtml = '<div style="margin-top:20px;text-align:left;">';
+    wrongHtml += '<div style="font-size:14px;color:#aaa;margin-bottom:8px;">❌ 错题回顾</div>';
+    wrongHtml += '<div class="exam-wrong-list">';
+    ExamState.wrongList.forEach(w => {
+      wrongHtml += '<div class="exam-wrong-item"><span class="ew-word">' + w.word + '</span><span class="ew-meaning">' + w.meaning + '</span></div>';
+    });
+    wrongHtml += '</div></div>';
+  }
+
+  const scopeLabel = ExamState.scope || '全部';
+
+  app.innerHTML = `
+    <div class="complete" style="text-align:center;">
+      <h2>📝 考试结果</h2>
+      <div style="font-size:13px;color:#888;margin-bottom:12px;">${scopeLabel} · ${total}题</div>
+      <div style="font-size:48px;font-weight:700;color:${gradeColor};margin:12px 0;">${pct}分</div>
+      <div style="font-size:18px;color:${gradeColor};margin-bottom:16px;">${grade}</div>
+      <div class="exam-result-bar">
+        <div class="bar-correct" style="width:${correctPct}%"></div>
+        <div class="bar-wrong" style="width:${wrongPct}%"></div>
+      </div>
+      <div style="font-size:14px;color:#aaa;">
+        ✅ 正确 ${score} &nbsp;&nbsp; ❌ 错误 ${wrong}
+      </div>
+      ${wrongHtml}
+      <div style="margin-top:20px;">
+        <button class="restart" onclick="AppState.switchView('examSetup')">📝 再考一次</button>
+        <button class="restart" style="margin-left:8px" onclick="AppState.switchView('dashboard')">← 返回主页</button>
+      </div>
+    </div>
+  `;
+}
+
 // 打乱顺序
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -2553,6 +2952,8 @@ document.addEventListener('keydown', e => {
       AppState.switchView('unitSelect');
     } else if (view === 'unitSelect') {
       AppState.switchView('dashboard');
+    } else if (view === 'exam' || view === 'examSetup') {
+      AppState.switchView('dashboard');
     }
     return;
   }
@@ -2607,7 +3008,7 @@ function bootApp() {
 bootApp();
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, renderUnitSelect, renderUnitLearn, renderUnitCard, unitToggleReveal, unitAnswer, startUnitLearn, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
+  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, renderUnitSelect, renderUnitLearn, renderUnitCard, unitToggleReveal, unitAnswer, startUnitLearn, ExamState, renderExamSetup, startExam, renderExamQuestion, renderExamResult, examChoose, examSpellSubmit, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
 }
 </script>
 </body>
