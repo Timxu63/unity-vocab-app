@@ -1316,6 +1316,15 @@ function renderSettings() {
         🧹 清除所有已学记录（保留设置）
       </button>
     </div>
+    <div style="margin-top:24px;padding:16px;background:rgba(255,255,255,0.04);border-radius:12px;">
+      <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:12px;">🔓 拼写解锁</div>
+      <div style="font-size:13px;color:#888;margin-bottom:14px;">
+        解锁所有单词，使其在拼写练习中可用（未学单词将标记为"模糊"）
+      </div>
+      <button class="settings-danger-btn" style="margin-top:0;background:rgba(0,188,212,0.15);color:#4dd0e1;" onclick="unlockAllWordsForSpelling()">
+        🔓 一键解锁所有单词到拼写
+      </button>
+    </div>
     <button class="settings-danger-btn" onclick="resetProgress()">⚠️ 完全重置（清除一切）</button>
   `;
 }
@@ -1376,6 +1385,36 @@ function clearAllLearnedProgress() {
   AppState.data.session = { date: new Date().toISOString().slice(0, 10), mode: null, currentIndex: 0, stats: { forget: 0, fuzzy: 0, know: 0 }, reviewQueue: [] };
   Storage.save(AppState.data);
   alert('已清除所有学习记录');
+  renderSettings();
+}
+
+function unlockAllWordsForSpelling() {
+  const progress = AppState.data.progress;
+  const today = new Date().toISOString().slice(0, 10);
+  let count = 0;
+  words.forEach(w => {
+    if (!progress[w.word]) {
+      progress[w.word] = {
+        masteryLevel: 'fuzzy',
+        learnedDate: today,
+        lastReviewDate: null,
+        nextReviewDate: null,
+        consecutiveKnown: 0,
+        mastered: false,
+        history: []
+      };
+      count++;
+    }
+  });
+  if (count === 0) {
+    alert('所有单词已经解锁，无需操作');
+    return;
+  }
+  // Clear plan groups since all words are now "learned"
+  AppState.data.plan.groups = [];
+  AppState.data.plan.currentGroupIndex = 0;
+  Storage.save(AppState.data);
+  alert('已解锁 ' + count + ' 个单词，现在可以在拼写练习中使用所有单词了');
   renderSettings();
 }
 
@@ -3086,7 +3125,7 @@ function bootApp() {
 bootApp();
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, renderSpellingUnitSelect, startSpellingWithCategory, renderUnitSelect, renderUnitLearn, renderUnitCard, unitToggleReveal, unitAnswer, startUnitLearn, ExamState, renderExamSetup, startExam, renderExamQuestion, renderExamResult, examChoose, examSpellSubmit, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
+  module.exports = { Storage, PlanEngine, ReviewEngine, Extractor, AppState, TTS, speakBtnHtml, renderDailyLearn, renderCurrentCard, dailyAnswer, dailyToggleReveal, renderReview, renderReviewCard, reviewToggleReveal, reviewAnswer, renderLibrary, renderWordDetail, filterLibraryWords, updateLibraryFilter, renderExtractedLearn, renderExtractedCard, extractedToggleReveal, extractedAnswer, renderSpelling, renderSpellingCard, spellSubmit, spellHint, spellSkip, spellNext, SpellingState, renderSpellingUnitSelect, startSpellingWithCategory, renderUnitSelect, renderUnitLearn, renderUnitCard, unitToggleReveal, unitAnswer, startUnitLearn, ExamState, renderExamSetup, startExam, renderExamQuestion, renderExamResult, examChoose, examSpellSubmit, unlockAllWordsForSpelling, _getLibraryFilters: () => _libraryFilters, _setLibraryFilters: (f) => { _libraryFilters = f; } };
 }
 </script>
 </body>
